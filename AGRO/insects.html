@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проти комах та гризунів — Агроном</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="logo">АГРОНОМ</a>
+    <div style="text-align: right; font-size: 0.7rem; opacity: 0.9;">м. Володимир<br>063 462 52 06</div>
+</nav>
+
+<div class="container">
+    <input type="text" id="search" class="search-box" placeholder="Шукати засіб від комах, мурах, мишей..." oninput="applyFilters()">
+    
+    <div class="cat-scroll">
+        <a href="index.html" class="cat-btn">Всі товари</a>
+        <a href="chemicals.html" class="cat-btn">АГРОХІМІКАТИ</a>
+        <a href="import.html" class="cat-btn">НАСІННЯ ІМПОРТНЕ</a>
+        <a href="domestic.html" class="cat-btn">НАСІННЯ ВІТЧИЗНЯНЕ</a>
+        <a href="weight.html" class="cat-btn">НАСІННЯ ВАГОВЕ</a>
+        <a href="materials.html" class="cat-btn">МАТЕРІАЛИ</a>
+        <a href="drops.html" class="cat-btn">КРАПЕЛЬНЕ ЗРОШУВАННЯ</a>
+        <a href="soil.html" class="cat-btn">ГРУНТ</a>
+        <a href="pots.html" class="cat-btn">ГОРЩИКИ</a>
+        <a href="insects.html" class="cat-btn active">ПРОТИ КОМАХ</a>
+        <a href="animals.html" class="cat-btn">ДЛЯ ТВАРИН</a>
+    </div>
+
+    <div id="sub-cat-container" class="cat-scroll" style="display:none; padding-top: 0;"></div>
+    
+    <div id="grid" class="grid"></div>
+    <button id="loadMore" style="display:none; margin: 25px auto;" class="btn" onclick="showMore()">Показати ще</button>
+</div>
+
+<div id="cart-float" onclick="openCart()">🛒 Кошик (<span id="cart-count">0</span>)</div>
+
+<div id="cart-modal" class="modal" onclick="if(event.target==this)closeCart()">
+    <div class="cart-ui">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="font-family: 'Playfair Display'; margin: 0;">Ваше замовлення</h2>
+            <button onclick="clearCart()" style="background: none; border: 1px solid #ff4d4d; color: #ff4d4d; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                🗑️ Очистити
+            </button>
+        </div>
+
+        <div id="cart-list"></div>
+        
+        <div style="font-size: 1.4rem; font-weight: 800; margin: 20px 0; text-align: right; color: var(--green);">Разом: <span id="cart-total">0</span> грн</div>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px; padding: 0 10px;">
+            <p style="text-align: center; font-weight: bold; font-size: 14px; color: var(--text);">Оберіть месенджер для оформлення:</p>
+            
+            <button class="btn" style="background: #0088cc; color: white; padding: 12px; font-weight: bold; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="sendToTelegram()">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" width="20" style="filter: brightness(0) invert(1);"> Telegram
+            </button>
+            
+            <button class="btn" style="background: #7360f2; color: white; padding: 12px; font-weight: bold; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="sendToViber()">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Viber_logo_2018.svg" width="20" style="filter: brightness(0) invert(1);"> Viber
+            </button>
+        </div>
+        
+        <button class="btn" style="background: #eee; color: #333; margin-top: 10px;" onclick="closeCart()">Продовжити покупки</button>
+    </div>
+</div>        <button class="btn" style="background: #eee; color: #333; margin-top: 10px;" onclick="closeCart()">Продовжити покупки</button>
+    </div>
+</div>
+
+<script>
+    // Константа категорії для цієї сторінки
+    const PAGE_CATEGORY = 'ПРОТИ КОМАХ';
+</script>
+<script src="app.js"></script>
+
+</body>
+</html>
