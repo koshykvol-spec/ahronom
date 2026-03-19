@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Крапельне зрошування — Агроном</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="logo">АГРОНОМ</a>
+    <div style="text-align: right; font-size: 0.7rem; opacity: 0.9;">м. Володимир<br>063 462 52 06</div>
+</nav>
+
+<div class="container">
+    <input type="text" id="search" class="search-box" placeholder="Шукати товари для поливу (стрічка, фітинг...)" oninput="applyFilters()">
+    
+    <div class="cat-scroll">
+        <a href="index.html" class="cat-btn">Всі товари</a>
+        <a href="chemicals.html" class="cat-btn">АГРОХІМІКАТИ</a>
+        <a href="import.html" class="cat-btn">НАСІННЯ ІМПОРТНЕ</a>
+        <a href="domestic.html" class="cat-btn">НАСІННЯ ВІТЧИЗНЯНЕ</a>
+        <a href="weight.html" class="cat-btn">НАСІННЯ ВАГОВЕ</a>
+        <a href="materials.html" class="cat-btn">МАТЕРІАЛИ</a>
+        <a href="drops.html" class="cat-btn active">КРАПЕЛЬНЕ ЗРОШУВАННЯ</a>
+        <a href="soil.html" class="cat-btn">ГРУНТ</a>
+        <a href="pots.html" class="cat-btn">ГОРЩИКИ</a>
+        <a href="insects.html" class="cat-btn">ПРОТИ КОМАХ</a>
+        <a href="animals.html" class="cat-btn">ДЛЯ ТВАРИН</a>
+    </div>
+
+    <div id="sub-cat-container" class="cat-scroll" style="display:none; padding-top: 0;"></div>
+    
+    <div id="grid" class="grid"></div>
+    <button id="loadMore" style="display:none; margin: 25px auto;" class="btn" onclick="showMore()">Показати ще</button>
+</div>
+
+<div id="cart-float" onclick="openCart()">🛒 Кошик (<span id="cart-count">0</span>)</div>
+<div id="cart-modal-container"></div>
+
+<script src="cart.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
