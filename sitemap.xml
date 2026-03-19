@@ -1,9 +1,76 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
   <url>
     <loc>https://koshykvol-spec.github.io/ahronom/</loc>
-    <lastmod>2026-03-12</lastmod>
-    <changefreq>monthly</changefreq>
     <priority>1.0</priority>
+    <changefreq>weekly</changefreq>
   </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/index.html</loc>
+    <priority>0.9</priority>
+    <changefreq>weekly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/animals.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/chemicals.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/domestic.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/drops.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/import.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/insects.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/materials.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/pots.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/soil.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://koshykvol-spec.github.io/ahronom/AGRO/weight.html</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
 </urlset>
