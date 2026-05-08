@@ -671,21 +671,37 @@ function injectCardImageStyles() {
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
+            position: relative;
         }
         .card-img {
             width: 100%;
             height: 100%;
             object-fit: contain;
             display: block;
-            transition: transform 0.2s ease;
+            transition: transform 0.3s ease;
         }
-        .card:hover .card-img {
-            transform: scale(1.04);
+        .card-img-wrap:hover .card-img {
+            transform: scale(1.08);
         }
         .card-img-placeholder {
             font-size: 2.5rem;
             color: #ccc;
             user-select: none;
+        }
+        /* Підказка "🔍" при наведенні */
+        .card-img-wrap::after {
+            content: '🔍';
+            position: absolute;
+            bottom: 6px;
+            right: 8px;
+            font-size: 1.1rem;
+            opacity: 0;
+            transition: opacity 0.25s;
+            pointer-events: none;
+        }
+        .card-img-wrap:hover::after {
+            opacity: 1;
         }
     `;
     document.head.appendChild(style);
