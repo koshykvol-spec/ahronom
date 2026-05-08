@@ -723,3 +723,23 @@ function injectCardImageStyles() {
     `;
     document.head.appendChild(style);
 }
+function openPhotoModal(img, name, annot, price) {
+    document.getElementById('modal-img').src    = img;
+    document.getElementById('modal-name').textContent  = name;
+    document.getElementById('modal-annot').textContent = annot;
+    document.getElementById('modal-price').textContent = price.toFixed(2) + ' грн';
+
+    const modal = document.getElementById('photo-modal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // блокуємо прокрутку
+}
+
+function closePhotoModal() {
+    document.getElementById('photo-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Закриття на клавішу Escape
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePhotoModal();
+});
