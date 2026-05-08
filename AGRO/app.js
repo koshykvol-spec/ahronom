@@ -186,14 +186,31 @@ function render(arr) {
         const icon = catIcons[p.c] || '🛒';
 
         // Блок з фото: якщо img заповнено — показуємо фото, інакше — іконка категорії
-        const imgBlock = p.img
-            ? `<div class="card-img-wrap">
-                   <img src="${p.img}" alt="${p.n}" class="card-img"
-                        onerror="this.parentElement.innerHTML='<div class=\\'card-img-placeholder\\'>${icon}</div>'">
-               </div>`
-            : `<div class="card-img-wrap">
-                   <div class="card-img-placeholder">${icon}</div>
-               </div>`;
+        // Коротка автоанотація за категорією (якщо немає p.annot у JSON)
+const autoAnnot = p.annot || {
+    'АГРОХІМІКАТИ':         'Засіб захисту рослин. Перед використанням ознайомтесь з інструкцією.',
+    'ПРОТИ КОМАХ':          'Ефективний захист від шкідників. Дотримуйтесь норм витрати.',
+    'НАСІННЯ ІМПОРТНЕ':     'Імпортне насіння від перевіреного виробника. Висока схожість.',
+    'НАСІННЯ ВІТЧИЗНЯНЕ':   'Вітчизняне насіння, адаптоване до кліматичних умов України.',
+    'НАСІННЯ ВАГОВЕ':       'Насіння вагове. Ціна вказана за 1 кг.',
+    'МАТЕРІАЛИ':            'Матеріал для садівництва та городництва.',
+    'КРАПЕЛЬНЕ ЗРОШУВАННЯ': 'Обладнання для крапельного поливу. Економить воду до 40%.',
+    'ГРУНТ':                'Готовий ґрунт для вирощування рослин у горщиках і теплицях.',
+    'ГОРЩИКИ':              'Горщик для вирощування розсади і кімнатних рослин.',
+    'ДЛЯ ТВАРИН':           'Товар для догляду за домашніми тваринами та птицею.',
+    'РОЗСАДА':              'Готова розсада. Висаджується відразу у відкритий ґрунт.',
+}[p.c] || 'Якісний товар від магазину Агроном.';
+
+const safeAnnot = autoAnnot.replace(/'/g, "\\'");
+
+const imgBlock = p.img
+    ? `<div class="card-img-wrap" onclick="openPhotoModal('${p.img}','${safeName}','${safeAnnot}',${p.p})">
+           <img src="${p.img}" alt="${p.n}" class="card-img"
+                onerror="this.parentElement.innerHTML='<div class=\\'card-img-placeholder\\'>${icon}</div>'">
+       </div>`
+    : `<div class="card-img-wrap">
+           <div class="card-img-placeholder">${icon}</div>
+       </div>`;
 
         grid.innerHTML += `
             <div class="card">
