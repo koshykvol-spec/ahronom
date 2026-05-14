@@ -3,6 +3,7 @@
 // ==========================================
 
 let products = [];
+let renderedProducts = []; // для модального вікна товару
 
 async function loadProducts() {
     try {
@@ -159,6 +160,7 @@ function render(arr) {
     grid.innerHTML = '';
 
     const slice = arr.slice(0, visibleCount);
+    renderedProducts = slice; // зберігаємо для модального вікна
 
     // Іконки-плейсхолдери за категорією
     const catIcons = {
@@ -185,13 +187,13 @@ function render(arr) {
 
         const icon = catIcons[p.c] || '🛒';
 
-        // Блок з фото: якщо img заповнено — показуємо фото, інакше — іконка категорії
+        // Блок з фото: клік відкриває модалку за індексом
         const imgBlock = p.img
-            ? `<div class="card-img-wrap">
+            ? `<div class="card-img-wrap" onclick="openProductModal(${idx})">
                    <img src="${p.img}" alt="${p.n}" class="card-img"
                         onerror="this.parentElement.innerHTML='<div class=\\'card-img-placeholder\\'>${icon}</div>'">
                </div>`
-            : `<div class="card-img-wrap">
+            : `<div class="card-img-wrap" onclick="openProductModal(${idx})">
                    <div class="card-img-placeholder">${icon}</div>
                </div>`;
 
@@ -705,4 +707,137 @@ function injectCardImageStyles() {
         }
     `;
     document.head.appendChild(style);
+}
+
+// ==========================================
+// МОДАЛЬНЕ ВІКНО ТОВАРУ (фото + анотація)
+// ==========================================
+
+function openProductModal(idx) {
+    const p = renderedProducts[idx];
+    if (!p) return;
+
+    const old = document.getElementById('product-modal');
+    if (old) old.remove();
+
+    const isWeight = p.c === "НАСІННЯ ВАГОВЕ" ||
+        p.n.toLowerCase().includes(", кг") ||
+        p.n.toLowerCase().includes(", 1 кг") ||
+        p.n.toLowerCase().includes(" ваговий") ||
+        p.n.toLowerCase().endsWith(",кг");
+
+    const modal = document.createElement('div');
+    modal.id = 'product-modal';
+    modal.style.cssText = `
+        position:fixed; inset:0; background:rgba(0,0,0,0.75);
+        display:flex; align-items:center; justify-content:center;
+        z-index:10000; padding:16px; box-sizing:border-box;
+    `;
+
+    const imgHtml = p.img
+        ? `<img src="${p.img}" alt=""
+               style="width:100%; max-height:280px; object-fit:contain;
+                      border-radius:10px; margin-bottom:16px; display:block;">`
+        : '';
+
+    const annotHtml = p.annot
+        ? `<p style="font-size:.95rem; color:#444; line-height:1.6; margin:0 0 16px;">${p.annot}</p>`
+        : '';
+
+    const qtyHtml = isWeight ? `
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <span style="font-size:.9rem; color:#555; white-space:nowrap;">Кількість:</span>
+            <input id="modal-qty" type="number" value="1" step="0.01" min="0.01"
+                style="width:90px; padding:8px 10px; border:2px solid #27ae60;
+                       border-radius:8px; font-size:1rem; font-weight:bold; text-align:center;">
+            <span style="font-size:.9rem; color:#555;">кг</span>
+        </div>
+    ` : `
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <span style="font-size:.9rem; color:#555; white-space:nowrap;">Кількість:</span>
+            <input id="modal-qty" type="number" value="1" step="1" min="1"
+                style="width:90px; padding:8px 10px; border:2px solid #27ae60;
+                       border-radius:8px; font-size:1rem; font-weight:bold; text-align:center;">
+            <span style="font-size:.9rem; color:#555;">шт.</span>
+        </div>
+    `;
+
+    modal.innerHTML = `
+        <div style="
+            background:#fff; border-radius:16px; padding:24px;
+            width:100%; max-width:480px; max-height:90vh;
+            overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.3);
+            position:relative; box-sizing:border-box;
+        ">
+            <button onclick="closeProductModal()" style="
+                position:absolute; top:12px; right:14px;
+                background:none; border:none; font-size:1.6rem;
+                cursor:pointer; color:#888; line-height:1;
+            ">✕</button>
+
+            <h3 style="margin:0 0 4px; padding-right:28px; font-size:1rem;
+                       color:#1a2e1a; line-height:1.4;">${p.n}</h3>
+
+            <div style="font-size:1.2rem; font-weight:bold; color:#27ae60; margin-bottom:14px;">
+                ${p.p.toFixed(2)} грн${isWeight ? ' / кг' : ''}
+            </div>
+
+            ${imgHtml}
+            ${annotHtml}
+            ${qtyHtml}
+
+            <div style="display:flex; gap:10px;">
+                <button id="modal-add-btn" onclick="addToCartFromModal(${idx})" style="
+                    flex:1; padding:13px; background:#2d6a2d; color:#fff;
+                    border:none; border-radius:10px; font-size:1rem;
+                    font-weight:bold; cursor:pointer;
+                ">🛒 Додати в кошик</button>
+
+                <button onclick="closeProductModal()" style="
+                    padding:13px 18px; background:#f0f0f0; color:#555;
+                    border:none; border-radius:10px; font-size:1rem;
+                    font-weight:bold; cursor:pointer;
+                ">Закрити</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeProductModal(); });
+}
+
+function addToCartFromModal(idx) {
+    const p = renderedProducts[idx];
+    if (!p) return;
+
+    const qtyInput = document.getElementById('modal-qty');
+    const quantity = parseFloat(qtyInput.value);
+
+    if (isNaN(quantity) || quantity <= 0) {
+        alert('Вкажіть коректну кількість');
+        return;
+    }
+
+    const item = cart.find(i => i.n === p.n);
+    if (item) {
+        item.q = parseFloat((item.q + quantity).toFixed(3));
+    } else {
+        cart.push({ n: p.n, p: p.p, q: quantity });
+    }
+    saveCart();
+
+    const btn = document.getElementById('modal-add-btn');
+    if (btn) {
+        btn.textContent = '✓ Додано!';
+        btn.style.background = '#1a2e1a';
+        setTimeout(() => {
+            btn.textContent = '🛒 Додати в кошик';
+            btn.style.background = '#2d6a2d';
+        }, 1000);
+    }
+}
+
+function closeProductModal() {
+    const m = document.getElementById('product-modal');
+    if (m) m.remove();
 }
