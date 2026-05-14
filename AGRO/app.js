@@ -1858,25 +1858,13 @@ function openOrderModal() {
                 border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:.9rem;
             "></div>
 
-            <p style="text-align:center; font-size:.85rem; color:#777; margin:0 0 12px;">
-                Оберіть месенджер для оформлення:
-            </p>
-            <div style="display:flex; gap:10px;">
-                <button id="ord-submit-btn" onclick="submitOrder('telegram')" style="
-                    flex:1; padding:13px; background:#2d6a2d; color:#fff;
-                    border:none; border-radius:10px; font-size:1rem;
-                    font-weight:bold; cursor:pointer; transition:background .2s;
-                ">
-                    ✈️ TELEGRAM
-                </button>
-                <button id="ord-viber-btn" onclick="submitOrder('viber')" style="
-                    flex:1; padding:13px; background:#7360f2; color:#fff;
-                    border:none; border-radius:10px; font-size:1rem;
-                    font-weight:bold; cursor:pointer; transition:background .2s;
-                ">
-                    📲 VIBER
-                </button>
-            </div>
+            <button id="ord-submit-btn" onclick="submitOrder('telegram')" style="
+                width:100%; padding:13px; background:#2d6a2d; color:#fff;
+                border:none; border-radius:10px; font-size:1rem;
+                font-weight:bold; cursor:pointer; transition:background .2s;
+            ">
+                ✓ Оформити
+            </button>
         </div>
     `;
 
@@ -2019,7 +2007,7 @@ async function submitOrder(platform = 'telegram') {
     } catch (err) {
         console.error('Order send error:', err);
         btn.disabled = false;
-        btn.textContent = '✈️ TELEGRAM';
+        btn.textContent = '✓ Оформити';
         showOrderError('Не вдалося надіслати замовлення. Перевірте інтернет та спробуйте ще раз.');
     }
 }
