@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Агроном</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="recipes.css">
+
+    <script>
+    // ── Конфіг категорій ──────────────────────────────────────────
+    const PAGE_CAT_CONFIG = {
+        chemicals: {
+            title:       'Агрохімікати — Агроном',
+            placeholder: 'Шукати препарати та добрива...'
+        },
+        import: {
+            title:       'Насіння Імпортне — Агроном',
+            placeholder: 'Шукати імпортне насіння...'
+        },
+        domestic: {
+            title:       'Насіння Вітчизняне — Агроном',
+            placeholder: 'Шукати вітчизняне насіння...'
+        },
+        weight: {
+            title:       'Насіння Вагове — Агроном',
+            placeholder: 'Шукати вагове насіння...'
+        },
+        materials: {
+            title:       'Матеріали — Агроном',
+            placeholder: 'Шукати матеріали (плівка, агроволокно...)'
+        },
+        drops: {
+            title:       'Крапельне зрошування — Агроном',
+            placeholder: 'Шукати товари для поливу (стрічка, фітинг...)'
+        },
+        soil: {
+            title:       'Ґрунти та субстрати — Агроном',
+            placeholder: 'Шукати ґрунт (субстрат, торф, дренаж...)'
+        },
+        pots: {
+            title:       'Горщики та касети — Агроном',
+            placeholder: 'Шукати горщики, касети, піддони...'
+        },
+        insects: {
+            title:       'Проти комах та гризунів — Агроном',
+            placeholder: 'Шукати засіб від комах, мурах, мишей...'
+        },
+        animals: {
+            title:       'Для тварин — Агроном',
+            placeholder: 'Шукати товари для тварин...'
+        },
+        sprouts: {
+            title:       'Розсада — Агроном',
+            placeholder: 'Шукати розсаду...'
+        }
+    };
+
+    // Встановлюємо title і placeholder ДО завантаження app.js (без flash)
+    (function () {
+        const cat = new URLSearchParams(location.search).get('cat') || '';
+        const cfg = PAGE_CAT_CONFIG[cat] || {};
+        document.getElementById('page-title').textContent = cfg.title || 'Агроном';
+        document.addEventListener('DOMContentLoaded', function () {
+            const s = document.getElementById('search');
+            if (s) s.placeholder = cfg.placeholder || 'Шукати товари...';
+        });
+    })();
+    </script>
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="logo">АГРОНОМ</a>
+    <div style="text-align: right; font-size: 0.7rem; opacity: 0.9;">м. Володимир<br>063 462 52 06</div>
+</nav>
+
+<div class="container">
+
+    <input type="text" id="search" class="search-box" placeholder="" oninput="applyFilters()">
+
+    <div style="background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+                border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <h3 style="text-align: center; color: #2d6a2d; margin: 0 0 15px;">
+            🎯 Що вас цікавить?
+        </h3>
+        <div id="recipes-container"
+             style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+        </div>
+    </div>
+
+    <!-- Навігація генерується через renderMainNav() у app.js -->
+    <div class="cat-scroll" id="main-nav"></div>
+
+    <div id="sub-cat-container" class="cat-scroll" style="display:none; padding-top: 0;"></div>
+
+    <div id="grid" class="grid"></div>
+
+    <button id="loadMore" style="display:none; margin: 25px auto;" class="btn" onclick="showMore()">
+        Показати ще
+    </button>
+</div>
+
+<div id="cart-float" onclick="openCart()">🛒 Кошик (<span id="cart-count">0</span>)</div>
+<div id="cart-modal-container"></div>
+
+<script src="cart.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
