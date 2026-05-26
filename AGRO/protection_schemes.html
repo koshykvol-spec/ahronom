@@ -477,7 +477,9 @@
                     html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || '') + '</div></div>';
                     html += '<div class="product-price">' + priceText + '</div>';
                     html += '<div class="product-stock ' + stockClass + '">' + stockText + '</div>';
-                    html += '<button class="btn-add-to-cart">🛒 Додати</button>';
+                    const safeName = product.n.replace(/'/g, "\\'");
+                    const addDisabled = inStock ? '' : ' disabled style="opacity:.45;cursor:not-allowed"';
+                    html += '<button class="btn-add-to-cart"' + addDisabled + ' onclick="addToCartScheme(\'' + safeName + '\',' + (product.p || 0) + ',this)">🛒 Додати</button>';
                     html += '</div>';
                 });
                 html += '</div>';
@@ -504,11 +506,13 @@
                     const stockClass = inStock ? 'in-stock' : 'out-of-stock';
                     const stockText  = inStock ? '✅ в наявності' : '❌ немає';
                     const priceText  = product.p ? product.p + ' грн' : 'договір';
+                    const safeName  = product.n.replace(/'/g, "\\'");
+                    const addDisabled = inStock ? '' : ' disabled style="opacity:.45;cursor:not-allowed"';
                     html += '<div class="product-item">';
                     html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || '') + '</div></div>';
                     html += '<div class="product-price">' + priceText + '</div>';
                     html += '<div class="product-stock ' + stockClass + '">' + stockText + '</div>';
-                    html += '<button class="btn-add-to-cart">🛒 Додати</button>';
+                    html += '<button class="btn-add-to-cart"' + addDisabled + ' onclick="addToCartScheme(\'' + safeName + '\',' + (product.p || 0) + ',this)">🛒 Додати</button>';
                     html += '</div>';
                 });
                 html += '</div></div>';
@@ -539,6 +543,67 @@
                 showSchemes(catParam, schemeParam);
             }
         });
+    </script>
+
+    <!-- ═══ МІНІМАЛЬНИЙ КОШИК (сумісний з cart.js на інших сторінках) ═══ -->
+    <div id="cart-float" onclick="goToCart()"
+         style="position:fixed;bottom:20px;right:20px;background:#2d6a2d;color:white;
+                padding:12px 20px;border-radius:30px;cursor:pointer;font-family:'Nunito',sans-serif;
+                font-weight:700;font-size:0.95rem;box-shadow:0 4px 16px rgba(0,0,0,0.25);
+                z-index:999;display:none;transition:transform .15s;">
+        🛒 Кошик (<span id="cart-count">0</span>)
+    </div>
+
+    <script>
+    // ── Кошик: shared localStorage з іншими сторінками ──────────
+    (function () {
+        const CART_KEY = 'agronom_cart';
+
+        function loadCart() {
+            try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; }
+            catch(e) { return []; }
+        }
+        function saveCart(cart) {
+            localStorage.setItem(CART_KEY, JSON.stringify(cart));
+        }
+        function updateFloat(cart) {
+            const total = cart.reduce(function(s, i) { return s + i.q; }, 0);
+            const el    = document.getElementById('cart-count');
+            const flt   = document.getElementById('cart-float');
+            if (el) el.textContent = total;
+            if (flt) flt.style.display = total > 0 ? 'block' : 'none';
+        }
+
+        // Глобальна функція — викликається кнопками в renderTreatment
+        window.addToCartScheme = function(name, price, btn) {
+            const cart = loadCart();
+            const item = cart.find(function(i) { return i.n === name; });
+            if (item) {
+                item.q++;
+            } else {
+                cart.push({ n: name, p: price, q: 1 });
+            }
+            saveCart(cart);
+            updateFloat(cart);
+            if (btn) {
+                btn.textContent = '✓ Додано';
+                btn.style.background = '#1a3a1a';
+                setTimeout(function() {
+                    btn.textContent = '🛒 Додати';
+                    btn.style.background = '';
+                }, 900);
+            }
+        };
+
+        window.goToCart = function() {
+            window.location.href = 'index.html';
+        };
+
+        // Ініціалізація при завантаженні
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFloat(loadCart());
+        });
+    })();
     </script>
 </body>
 </html>

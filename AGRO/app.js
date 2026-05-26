@@ -125,118 +125,139 @@ function getInitialCategory() {
 
 let currentCat = getInitialCategory();
 
+// ==========================================
+// РЕЦЕПТИ: СХЕМИ ЗАХИСТУ + ПОШУКОВІ ФІЛЬТРИ
+// Оптимізовано: без дублів, сворачиваемий пошук
+// ==========================================
+
 let recipes = [];
-        
-        async function loadRecipes() {
-            try {
-                const resp = await fetch('recipes.json?v=' + Date.now());
-                if (!resp.ok) throw new Error('recipes.json: HTTP ' + resp.status);
-                recipes = await resp.json();
-                renderRecipes();
-            } catch(e) {
-                console.warn('⚠️ recipes.json не знайдено:', e.message);
-            }
-        }
-        
-        // Рецепти, що ведуть на схему захисту: id рецепту → category
-        const SCHEME_LINKS = {
-            'seed_treatment':     'seed_treatment',
-            'apple_insects':      'pomaceous_fruits?scheme=apple_protection',
-            'apple_disease':      'pomaceous_fruits?scheme=apple_protection',
-            'cherry_insects':     'stone_fruits?scheme=cherry_sweet_protection',
-            'tomato_greenhouse':  'vegetables?scheme=tomato_greenhouse',
-            'tomato_ground':      'vegetables?scheme=tomato_open',
-            'cucumber_ground':    'vegetables?scheme=cucumber_protection',
-            'cucumber_greenhouse':'vegetables?scheme=cucumber_protection',
-            'cabbage':            'vegetables?scheme=cabbage_protection',
-            'carrot':             'vegetables?scheme=carrot_protection',
-            'grain_wheat':        'grain_crops?scheme=wheat_spring',
-            'grain_corn':         'grain_crops?scheme=corn_protection',
-            'grapes':             'grapes?scheme=grapes_full_protection',
-            'fungicide':          null,
-            'insecticide':        null,
-            'herbicide':          null,
-            'moles':              null,
-            'snails':             null,
-            'soil_beds':          null,
-            'seedling':           null,
-            'drip_watering':      null,
-            'flower_seeds':       null,
-            'herbs':              null,
-        };
+let searchFiltersExpanded = (localStorage.getItem('searchFiltersExpanded') !== 'false');
 
-        // Схеми Syngenta — показуються окремою кнопкою поруч із загальною
-        const SYNGENTA_LINKS = {
-            'apple_insects':      'pomaceous_fruits?scheme=apple_syngenta',
-            'apple_disease':      'pomaceous_fruits?scheme=apple_syngenta',
-            'cherry_insects':     'stone_fruits?scheme=cherry_syngenta',
-            'tomato_greenhouse':  'vegetables?scheme=tomato_syngenta',
-            'tomato_ground':      'vegetables?scheme=tomato_syngenta',
-            'cucumber_ground':    'vegetables?scheme=cucumber_syngenta',
-            'cucumber_greenhouse':'vegetables?scheme=cucumber_syngenta',
-            'pepper_greenhouse':  'vegetables?scheme=pepper_syngenta',
-            'cabbage':            'vegetables?scheme=cabbage_syngenta',
-            'carrot':             'vegetables?scheme=carrot_syngenta',
-            'grapes':             'grapes?scheme=grapes_syngenta',
-            'flower_seeds':       'flowering_plants?scheme=flowers_syngenta',
-        };
+async function loadRecipes() {
+    try {
+        const resp = await fetch('recipes.json?v=' + Date.now());
+        if (!resp.ok) throw new Error('recipes.json: HTTP ' + resp.status);
+        recipes = await resp.json();
+        renderRecipes();
+    } catch(e) {
+        console.warn('⚠️ recipes.json не знайдено:', e.message);
+    }
+}
 
-        function renderRecipes() {
-            const container = document.getElementById('recipes-container');
-            if (!container) return;
+// Схеми захисту — об'єднані культури (без дублів apple_insects + apple_disease і т.д.)
+const SCHEME_LINKS = {
+    'apple':       'pomaceous_fruits?scheme=apple_protection',
+    'cherry':      'stone_fruits?scheme=cherry_sweet_protection',
+    'tomato':      'vegetables?scheme=tomato_greenhouse',
+    'cucumber':    'vegetables?scheme=cucumber_protection',
+    'pepper':      'vegetables?scheme=pepper_syngenta',
+    'cabbage':     'vegetables?scheme=cabbage_protection',
+    'carrot':      'vegetables?scheme=carrot_protection',
+    'grain_wheat': 'grain_crops?scheme=wheat_spring',
+    'grain_corn':  'grain_crops?scheme=corn_protection',
+    'grapes':      'grapes?scheme=grapes_full_protection',
+};
 
-            function toHref(target) {
-                return 'protection_schemes.html?category=' + target.replace('?scheme=', '&scheme=');
-            }
-            function schemeBtn(r) {
-                return '<a class="recipe-btn scheme" href="' + toHref(SCHEME_LINKS[r.id]) + '">' + r.title + '</a>';
-            }
-            function synBtn(r) {
-                return '<a class="recipe-btn syngenta" href="' + toHref(SYNGENTA_LINKS[r.id]) + '">' + r.title + ' <span class="syn-badge">Syngenta</span></a>';
-            }
-            function searchBtn(r) {
-                var kw = r.keywords && r.keywords[0] ? r.keywords[0] : r.title;
-                return '<button class="recipe-btn search" onclick="quickSearch(\'' + kw + '\')">' + r.title + '</button>';
-            }
+// Схеми Syngenta — альтернативна кнопка поруч із загальною
+const SYNGENTA_LINKS = {
+    'apple':       'pomaceous_fruits?scheme=apple_syngenta',
+    'cherry':      'stone_fruits?scheme=cherry_syngenta',
+    'tomato':      'vegetables?scheme=tomato_syngenta',
+    'cucumber':    'vegetables?scheme=cucumber_syngenta',
+    'pepper':      'vegetables?scheme=pepper_syngenta',
+    'cabbage':     'vegetables?scheme=cabbage_syngenta',
+    'carrot':      'vegetables?scheme=carrot_syngenta',
+    'grapes':      'grapes?scheme=grapes_syngenta',
+};
 
-            var schemeItems  = recipes.filter(r => SCHEME_LINKS[r.id]);
-            var synOnlyItems = recipes.filter(r => !SCHEME_LINKS[r.id] && SYNGENTA_LINKS[r.id]);
-            var searchItems  = recipes.filter(r => !SCHEME_LINKS[r.id] && !SYNGENTA_LINKS[r.id]);
+function renderRecipes() {
+    const container = document.getElementById('recipes-container');
+    if (!container) return;
 
-            var html = '<div class="recipes-block">';
+    function toHref(target) {
+        return 'protection_schemes.html?category=' + target.replace('?scheme=', '&scheme=');
+    }
+    function schemeBtn(r) {
+        return '<a class="recipe-btn scheme" href="' + toHref(SCHEME_LINKS[r.id]) + '">' + r.title + '</a>';
+    }
+    function synBtn(r) {
+        return '<a class="recipe-btn syngenta" href="' + toHref(SYNGENTA_LINKS[r.id]) + '">'
+             + r.title + ' <span class="syn-badge">Syngenta</span></a>';
+    }
+    function searchBtn(r) {
+        var kw = (r.keywords && r.keywords[0]) ? r.keywords[0] : r.title;
+        kw = kw.replace(/'/g, "\\'");
+        return '<button class="recipe-btn search" onclick="quickSearch(\'' + kw + '\')">' + r.title + '</button>';
+    }
 
-            if (schemeItems.length || synOnlyItems.length) {
-                html += '<div class="recipes-section">';
-                html += '<div class="recipes-section-title">📋 Схеми захисту та вирощування</div>';
-                html += '<div class="recipes-grid">';
-                schemeItems.forEach(function(r) {
-                    html += schemeBtn(r);
-                    if (SYNGENTA_LINKS[r.id]) html += synBtn(r);
-                });
-                synOnlyItems.forEach(function(r) { html += synBtn(r); });
-                html += '</div></div>';
-            }
+    // Розділяємо за полем type (scheme / search)
+    var schemeItems = recipes.filter(function(r) { return r.type === 'scheme' && SCHEME_LINKS[r.id]; });
+    var searchItems = recipes.filter(function(r) { return r.type === 'search'; });
 
-            if (searchItems.length) {
-                html += '<div class="recipes-section">';
-                html += '<div class="recipes-section-title">🔍 Пошук товарів</div>';
-                html += '<div class="recipes-grid">';
-                searchItems.forEach(function(r) { html += searchBtn(r); });
-                html += '</div></div>';
-            }
+    // Fallback для старого формату recipes.json (без поля type)
+    if (!schemeItems.length && !searchItems.length) {
+        schemeItems = recipes.filter(function(r) { return SCHEME_LINKS[r.id]; });
+        searchItems = recipes.filter(function(r) { return !SCHEME_LINKS[r.id] && !SYNGENTA_LINKS[r.id]; });
+    }
 
-            html += '</div>';
-            container.innerHTML = html;
-        }
+    var expanded = searchFiltersExpanded;
+    var html = '<div class="recipes-block">';
 
-        function quickSearch(query) {
-            const searchEl = document.getElementById('search');
-            if (searchEl) {
-                searchEl.value = query;
-                applyFilters();
-                document.getElementById('grid')?.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
+    // 1️⃣ СХЕМИ ЗАХИСТУ
+    if (schemeItems.length) {
+        html += '<div class="recipes-section schemes">';
+        html += '<div class="recipes-section-title">📋 Схеми захисту та вирощування</div>';
+        html += '<div class="recipes-grid">';
+        schemeItems.forEach(function(r) {
+            html += schemeBtn(r);
+            if (SYNGENTA_LINKS[r.id]) html += synBtn(r);
+        });
+        html += '</div></div>';
+    }
+
+    // 2️⃣ ПОШУКОВІ ФІЛЬТРИ (сворачиваемі)
+    if (searchItems.length) {
+        html += '<div class="recipes-section search">';
+        html += '<div class="search-filters-toggle">';
+        html += '<input type="checkbox" id="toggle-search-filters"'
+             + (expanded ? ' checked' : '')
+             + ' onchange="toggleSearchFilters()">';
+        html += '<label for="toggle-search-filters">🔍 Пошук товарів (' + searchItems.length + ')</label>';
+        html += '</div>';
+        html += '<div id="search-filters-container"' + (expanded ? '' : ' class="collapsed"') + '>';
+        html += '<div class="recipes-grid search-grid">';
+        searchItems.forEach(function(r) { html += searchBtn(r); });
+        html += '</div></div></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function toggleSearchFilters() {
+    var checkbox = document.getElementById('toggle-search-filters');
+    var container = document.getElementById('search-filters-container');
+    if (!checkbox || !container) return;
+    searchFiltersExpanded = checkbox.checked;
+    if (searchFiltersExpanded) {
+        container.classList.remove('collapsed');
+    } else {
+        container.classList.add('collapsed');
+    }
+    localStorage.setItem('searchFiltersExpanded', searchFiltersExpanded);
+}
+
+function quickSearch(query) {
+    const searchEl = document.getElementById('search');
+    if (searchEl) {
+        searchEl.value = query;
+        applyFilters();
+        setTimeout(function() {
+            var grid = document.getElementById('grid');
+            if (grid) grid.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    }
+}
 
 
 // 2. Основна функція фільтрації (Пошук + Категорія + Підкатегорія)
