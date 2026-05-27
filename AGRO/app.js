@@ -2,24 +2,30 @@
 // ЗАВАНТАЖЕННЯ ТОВАРІВ З JSON (замість хардкоду)
 // ==========================================
 
+const SITE_VERSION = '20260527'; // оновлювати при зміні товарів
+
 let products = [];
 let renderedProducts = []; // для модального вікна товару
 
 async function loadProducts() {
     try {
-        const [prodResp, imgResp] = await Promise.all([
-            fetch('products.json?v=' + Date.now()),
-            fetch('img-map.json')
-        ]);
+        // img-map кешуємо у sessionStorage — між переходами по категоріях
+        let imgs = {};
+        const cachedMap = sessionStorage.getItem('agronom_img_map_v2');
+        if (cachedMap) {
+            imgs = JSON.parse(cachedMap);
+        }
 
+        const prodResp = await fetch('products.json?v=' + SITE_VERSION);
         if (!prodResp.ok) throw new Error('products.json: HTTP ' + prodResp.status);
-
         const prod = await prodResp.json();
 
-        // img-map.json може ще не існувати — це не критично
-        let imgs = {};
-        if (imgResp.ok) {
-            imgs = await imgResp.json();
+        if (!cachedMap) {
+            const imgResp = await fetch('img-map.json');
+            if (imgResp.ok) {
+                imgs = await imgResp.json();
+                try { sessionStorage.setItem('agronom_img_map_v2', JSON.stringify(imgs)); } catch(e) {}
+            }
         }
 
         // Склеюємо: підставляємо фото з img-map за точною назвою товару
@@ -68,6 +74,7 @@ const NAV_ITEMS = [
     { href: 'category.html?cat=pots',      label: 'ГОРЩИКИ',              cat: 'pots'              },
     { href: 'category.html?cat=insects',   label: 'ПРОТИ КОМАХ',          cat: 'insects'           },
     { href: 'category.html?cat=animals',   label: 'ДЛЯ ТВАРИН',          cat: 'animals'           },
+    { href: 'category.html?cat=sprouts',  label: 'РОЗСАДА',              cat: 'sprouts'           },
 ];
 
 // Малює горизонтальну навігацію з активним станом поточної категорії
@@ -135,7 +142,7 @@ let searchFiltersExpanded = (localStorage.getItem('searchFiltersExpanded') !== '
 
 async function loadRecipes() {
     try {
-        const resp = await fetch('recipes.json?v=' + Date.now());
+        const resp = await fetch('recipes.json?v=' + SITE_VERSION);
         if (!resp.ok) throw new Error('recipes.json: HTTP ' + resp.status);
         recipes = await resp.json();
         renderRecipes();
@@ -190,12 +197,16 @@ function renderRecipes() {
         return '<button class="recipe-btn search" onclick="quickSearch(\'' + kw + '\')">' + r.title + '</button>';
     }
 
+    // Категорії, де схеми захисту НЕ показуємо (нерелевантно)
+    var catKey = new URLSearchParams(location.search).get('cat') || '';
+    var hideSchemes = ['drops','soil','pots','animals','materials'].indexOf(catKey) !== -1;
+
     // Розділяємо за полем type (scheme / search)
-    var schemeItems = recipes.filter(function(r) { return r.type === 'scheme' && SCHEME_LINKS[r.id]; });
+    var schemeItems = hideSchemes ? [] : recipes.filter(function(r) { return r.type === 'scheme' && SCHEME_LINKS[r.id]; });
     var searchItems = recipes.filter(function(r) { return r.type === 'search'; });
 
     // Fallback для старого формату recipes.json (без поля type)
-    if (!schemeItems.length && !searchItems.length) {
+    if (!schemeItems.length && !searchItems.length && !hideSchemes) {
         schemeItems = recipes.filter(function(r) { return SCHEME_LINKS[r.id]; });
         searchItems = recipes.filter(function(r) { return !SCHEME_LINKS[r.id] && !SYNGENTA_LINKS[r.id]; });
     }
@@ -248,6 +259,7 @@ function toggleSearchFilters() {
 }
 
 function quickSearch(query) {
+    visibleCount = 20; // скидаємо ліміт при новому пошуку
     const searchEl = document.getElementById('search');
     if (searchEl) {
         searchEl.value = query;
@@ -349,7 +361,21 @@ function setSubCat(sc) {
 function render(arr) {
     const grid = document.getElementById('grid');
     if (!grid) return;
-    grid.innerHTML = '';
+
+    // Порожній стан
+    if (arr.length === 0) {
+        grid.innerHTML = `<div style="
+            grid-column: 1/-1; text-align:center; padding: 40px 20px;
+            color: #888; font-size: 1rem; line-height: 1.6;
+        ">
+            <div style="font-size:2.5rem; margin-bottom:12px;">🔍</div>
+            <div style="font-weight:600; margin-bottom:6px;">Нічого не знайдено</div>
+            <div style="font-size:0.9rem;">Спробуйте змінити запит або <a href="#" onclick="clearSearch(event)" style="color:#2d6a2d;">очистити пошук</a></div>
+        </div>`;
+        const loadMoreBtn = document.getElementById('loadMore');
+        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+        return;
+    }
 
     const slice = arr.slice(0, visibleCount);
     renderedProducts = slice; // зберігаємо для модального вікна
@@ -369,7 +395,8 @@ function render(arr) {
         'РОЗСАДА':             '🌿',
     };
 
-    slice.forEach((p, idx) => {
+    // Збираємо HTML у масив — один innerHTML замість += у циклі
+    const cards = slice.map((p, idx) => {
         const safeName = p.n.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         const isWeight = p.c === "НАСІННЯ ВАГОВЕ" ||
                  p.n.toLowerCase().includes(", кг") ||
@@ -379,7 +406,6 @@ function render(arr) {
 
         const icon = catIcons[p.c] || '🛒';
 
-        // Блок з фото: клік відкриває модалку за індексом
         const imgBlock = p.img
             ? `<div class="card-img-wrap" onclick="openProductModal(${idx})">
                    <img src="${p.img}" alt="${p.n}" class="card-img"
@@ -389,7 +415,7 @@ function render(arr) {
                    <div class="card-img-placeholder">${icon}</div>
                </div>`;
 
-        grid.innerHTML += `
+        return `
             <div class="card">
                 ${imgBlock}
                 <h3>${p.n}</h3>
@@ -404,7 +430,7 @@ function render(arr) {
                                style="width: 80px; padding: 8px; border-radius: 6px; border: 2px solid #27ae60; text-align: center; font-weight: bold;">
                         <span style="font-weight: bold; color: #555;">кг</span>
                     </div>
-                    <button class="btn" onclick="addWeightToCart('${safeName}', ${p.p}, ${idx})">ДОДАТИ</button>
+                    <button class="btn" onclick="addWeightToCart('${safeName}', ${p.p}, ${idx}, 'кг')">ДОДАТИ</button>
                 ` : `
                     <button class="btn" onclick="addToCart('${safeName}', ${p.p}, this)">ДОДАТИ</button>
                 `}
@@ -412,8 +438,16 @@ function render(arr) {
         `;
     });
 
+    grid.innerHTML = cards.join('');
+
     const loadMoreBtn = document.getElementById('loadMore');
     if (loadMoreBtn) loadMoreBtn.style.display = arr.length > visibleCount ? 'block' : 'none';
+}
+
+function clearSearch(e) {
+    e.preventDefault();
+    const searchEl = document.getElementById('search');
+    if (searchEl) { searchEl.value = ''; applyFilters(); }
 }
 
 // 6. Кнопка "Показати ще"
@@ -478,18 +512,20 @@ function addWeightToCart(name, price, idx, unit) {
 }
 
 function updateCartUI() {
-    const itemCount = cart.length;
-    const totalSum = cart.reduce((sum, item) => sum + (item.p * item.q), 0);
+    const itemCount = cart.length; // кількість різних позицій
+    const totalUnits = cart.reduce((s, i) => s + parseFloat(i.q || 0), 0); // загальна кількість одиниць
+    const totalSum   = cart.reduce((sum, item) => sum + (item.p * item.q), 0);
 
-    const countEl = document.getElementById('cart-count');
+    const countEl  = document.getElementById('cart-count');
     const floatBtn = document.getElementById('cart-float');
 
-    if (countEl) countEl.innerText = itemCount;
-
+    // Плаваюча кнопка: завжди показуємо якщо є товари
     if (floatBtn) {
-        floatBtn.style.display = itemCount > 0 ? 'block' : 'none';
-        floatBtn.innerHTML = `🛒 Кошик (${itemCount}) — ${totalSum.toFixed(2)} грн`;
+        floatBtn.style.display = itemCount > 0 ? 'flex' : 'none';
+        const unitsLabel = Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2);
+        floatBtn.innerHTML = `🛒 Кошик (${unitsLabel} од.) — ${totalSum.toFixed(2)} грн`;
     }
+    if (countEl) countEl.innerText = itemCount;
 }
 
 function openCart() {
@@ -649,23 +685,13 @@ function openOrderModal() {
                 border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:.9rem;
             "></div>
 
-            <p style="text-align:center; font-size:.85rem; color:#777; margin:0 0 12px;">
-                Оберіть месенджер для оформлення:
-            </p>
             <div style="display:flex; gap:10px;">
                 <button id="ord-submit-btn" onclick="submitOrder('telegram')" style="
                     flex:1; padding:13px; background:#2d6a2d; color:#fff;
                     border:none; border-radius:10px; font-size:1rem;
                     font-weight:bold; cursor:pointer; transition:background .2s;
                 ">
-                    ✈️ TELEGRAM
-                </button>
-                <button id="ord-viber-btn" onclick="submitOrder('viber')" style="
-                    flex:1; padding:13px; background:#7360f2; color:#fff;
-                    border:none; border-radius:10px; font-size:1rem;
-                    font-weight:bold; cursor:pointer; transition:background .2s;
-                ">
-                    📲 VIBER
+                    ✅ Оформити замовлення
                 </button>
             </div>
         </div>
@@ -719,8 +745,15 @@ async function submitOrder(platform = 'telegram') {
     const errEl = document.getElementById('ord-error');
     errEl.style.display = 'none';
 
-    if (!name)  return showOrderError('Введіть ваше Прізвище та Ім\'я');
+    if (!name)  return showOrderError("Введіть ваше Прізвище та Ім'я");
     if (!phone) return showOrderError('Введіть номер телефону');
+
+    // Валідація формату телефону (UA/RU/міжнародний)
+    const phoneClean = phone.replace(/[\s\-\(\)]/g, '');
+    if (!/^(\+?380|0)\d{9}$/.test(phoneClean)) {
+        return showOrderError('Номер телефону у форматі +380XXXXXXXXX або 0XXXXXXXXX');
+    }
+
     if (isNP && !addressRaw) return showOrderError('Введіть адресу відділення Нової Пошти');
 
     let totalSum    = 0;
@@ -761,20 +794,46 @@ async function submitOrder(platform = 'telegram') {
         const viberUrl     = `viber://chat?number=${VIBER_PHONE}&draft=${encodeURIComponent(plainMessage)}`;
         const viberWebUrl  = `https://viber.me/${VIBER_PHONE}`;
 
-        const copyAndOpen = () => {
+        const openViber = () => {
             window.location.href = viberUrl;
             setTimeout(() => {
                 if (document.hasFocus()) window.open(viberWebUrl, '_blank');
             }, 1200);
             closeOrderModal();
             finalizeOrder();
-            showOrderSuccess('📲 Відкривається Viber — вставте текст із буфера і надішліть!');
+        };
+
+        const showViberCopyFallback = () => {
+            // Clipboard недоступний — показуємо текст для ручного копіювання
+            closeOrderModal();
+            const fb = document.createElement('div');
+            fb.id = 'viber-fallback';
+            fb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;box-sizing:border-box;';
+            fb.innerHTML = `<div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:440px;box-sizing:border-box;">
+                <h3 style="margin:0 0 12px;font-size:1rem;color:#1a2e1a;">📋 Скопіюйте текст і надішліть у Viber</h3>
+                <textarea readonly rows="10" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px;font-size:0.8rem;resize:none;box-sizing:border-box;">${plainMessage}</textarea>
+                <div style="display:flex;gap:10px;margin-top:12px;">
+                    <button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.parentElement.previousElementSibling.value).then(()=>{this.textContent='✓ Скопійовано!'})" 
+                        style="flex:1;padding:11px;background:#2d6a2d;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">📋 Копіювати</button>
+                    <button onclick="window.location.href='${viberUrl}'" 
+                        style="flex:1;padding:11px;background:#7360f2;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">📲 Відкрити Viber</button>
+                    <button onclick="document.getElementById('viber-fallback').remove()" 
+                        style="padding:11px 14px;background:#eee;border:none;border-radius:8px;cursor:pointer;">✕</button>
+                </div>
+            </div>`;
+            document.body.appendChild(fb);
+            finalizeOrder();
         };
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(plainMessage).then(copyAndOpen).catch(copyAndOpen);
+            navigator.clipboard.writeText(plainMessage)
+                .then(() => {
+                    openViber();
+                    showOrderSuccess('📲 Текст скопійовано — вставте у Viber і надішліть!');
+                })
+                .catch(showViberCopyFallback);
         } else {
-            copyAndOpen();
+            showViberCopyFallback();
         }
         return;
     }
@@ -801,12 +860,12 @@ async function submitOrder(platform = 'telegram') {
             finalizeOrder();
             showOrderSuccess();
         } else {
-            throw new Error('Помилка надсилання одному з отримувачів');
+            throw new Error('Помилка надсилання');
         }
     } catch (err) {
         console.error('Order send error:', err);
         btn.disabled = false;
-        btn.textContent = '✈️ TELEGRAM';
+        btn.textContent = '✅ Оформити замовлення';
         showOrderError('Не вдалося надіслати замовлення. Перевірте інтернет та спробуйте ще раз.');
     }
 }

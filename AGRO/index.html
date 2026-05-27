@@ -3,29 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Агроном — Всі товари</title>
+    <title>Агроном — Інтернет-магазин агрохімікатів та насіння | м. Володимир</title>
+    <meta name="description" content="Агроном — магазин у м. Володимир. Агрохімікати, насіння, крапельний полив, ґрунти, горщики. Замовлення через Telegram або Viber.">
+    <meta property="og:title" content="Агроном — Агрохімікати та насіння | м. Володимир">
+    <meta property="og:description" content="Широкий асортимент: агрохімікати, імпортне та вітчизняне насіння, добрива, крапельний полив. Замовлення онлайн.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="uk_UA">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css"> 
-<link rel="stylesheet" href="recipes.css">
+    <link rel="stylesheet" href="recipes.css">
 </head>
 <body>
 
 <nav>
     <a href="index.html" class="logo">АГРОНОМ</a>
-    <div style="text-align: right; font-size: 0.7rem; opacity: 0.9;">м. Володимир<br>063 462 52 06</div>
+    <a href="tel:+380634625206" style="text-align: right; font-size: 0.7rem; opacity: 0.9; color: inherit; text-decoration: none; line-height: 1.4;">
+        м. Володимир<br><strong>063 462 52 06</strong>
+    </a>
 </nav>
 
 <div class="container">
     <input type="text" id="search" class="search-box" placeholder="Шукати товари..." oninput="applyFilters()">
-   <div id="recipes-container"></div> 
-   <!-- Навігація генерується через renderMainNav() у app.js -->
-   <div class="cat-scroll" id="main-nav"></div>
+    <div id="recipes-container"></div> 
+    <!-- Навігація генерується через renderMainNav() у app.js -->
+    <div class="cat-scroll" id="main-nav"></div>
 
     <div id="grid" class="grid"></div>
     <button id="loadMore" style="display:none; margin: 25px auto;" class="cat-btn" onclick="showMore()">Показати ще</button>
 </div>
 
-<div id="cart-float" onclick="openCart()">🛒 Кошик (<span id="cart-count">0</span>)</div>
+<div id="cart-float" onclick="openCart()" style="display:none;">🛒 Кошик (<span id="cart-count">0</span>)</div>
 <div id="cart-modal-container"></div>
 
 <script src="cart.js"></script>

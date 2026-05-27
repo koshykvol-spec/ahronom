@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">Агроном</title>
+    <meta name="description" id="page-desc" content="Агроном — магазин у м. Володимир. Агрохімікати, насіння, крапельний полив, ґрунти.">
+    <meta property="og:title" content="Агроном — Агрохімікати та насіння | м. Володимир">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="uk_UA">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="recipes.css">
@@ -62,6 +66,10 @@
         const cat = new URLSearchParams(location.search).get('cat') || '';
         const cfg = PAGE_CAT_CONFIG[cat] || {};
         document.getElementById('page-title').textContent = cfg.title || 'Агроном';
+        if (cfg.title) {
+            const ogTitle = document.querySelector('meta[property="og:title"]');
+            if (ogTitle) ogTitle.setAttribute('content', cfg.title);
+        }
         document.addEventListener('DOMContentLoaded', function () {
             const s = document.getElementById('search');
             if (s) s.placeholder = cfg.placeholder || 'Шукати товари...';
@@ -73,7 +81,9 @@
 
 <nav>
     <a href="index.html" class="logo">АГРОНОМ</a>
-    <div style="text-align: right; font-size: 0.7rem; opacity: 0.9;">м. Володимир<br>063 462 52 06</div>
+    <a href="tel:+380634625206" style="text-align: right; font-size: 0.7rem; opacity: 0.9; color: inherit; text-decoration: none; line-height: 1.4;">
+        м. Володимир<br><strong>063 462 52 06</strong>
+    </a>
 </nav>
 
 <div class="container">
@@ -102,7 +112,7 @@
     </button>
 </div>
 
-<div id="cart-float" onclick="openCart()">🛒 Кошик (<span id="cart-count">0</span>)</div>
+<div id="cart-float" onclick="openCart()" style="display:none;">🛒 Кошик (<span id="cart-count">0</span>)</div>
 <div id="cart-modal-container"></div>
 
 <script src="cart.js"></script>
