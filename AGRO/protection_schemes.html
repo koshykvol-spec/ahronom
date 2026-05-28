@@ -146,45 +146,76 @@
         
         .product-item {
             background: white;
-            border-left: 4px solid #4a9c4a;
-            padding: 12px;
-            border-radius: 6px;
+            border-radius: 10px;
+            padding: 10px 14px 10px 10px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            gap: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            transition: box-shadow .15s;
         }
-        
-        .product-info { flex: 1; }
-        .product-name { font-weight: 600; color: #333; font-size: 0.9rem; }
-        .product-brand { font-size: 0.8rem; color: #999; }
-        .product-price { font-weight: 700; color: #2d6a2d; font-size: 1rem; margin: 0 15px; }
-        
+        .product-item:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+
+        .product-photo {
+            width: 58px; height: 58px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: #f5f5f5;
+            flex-shrink: 0;
+            border: 1px solid #eee;
+        }
+        .product-photo-placeholder {
+            width: 58px; height: 58px;
+            border-radius: 8px;
+            background: #eef5ee;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+            border: 1px solid #d5e8d5;
+        }
+
+        .product-info { flex: 1; min-width: 0; }
+        .product-name { font-weight: 600; color: #1a2e1a; font-size: 0.88rem; line-height: 1.3; }
+        .product-brand { font-size: 0.75rem; color: #aaa; margin-top: 2px; text-transform: uppercase; letter-spacing: .04em; }
+
+        .product-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+        .product-price { font-weight: 700; color: #2d6a2d; font-size: 1.05rem; white-space: nowrap; }
+
         .product-stock {
             display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
             font-weight: 600;
+            white-space: nowrap;
         }
-        
         .product-stock.in-stock { background: #d4edda; color: #155724; }
         .product-stock.out-of-stock { background: #f8d7da; color: #721c24; }
-        
+
         .btn-add-to-cart {
             background: #2d6a2d;
             color: white;
             border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
+            padding: 7px 14px;
+            border-radius: 7px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.8rem;
+            font-family: 'Nunito', sans-serif;
+            transition: background .15s;
+            white-space: nowrap;
         }
-        
         .btn-add-to-cart:hover { background: #1e4620; }
-        
+
         .no-products { color: #999; font-size: 0.85rem; font-style: italic; }
+
+        @media (max-width: 520px) {
+            .product-item { gap: 8px; padding: 8px 10px 8px 8px; }
+            .product-photo, .product-photo-placeholder { width: 44px; height: 44px; font-size: 1.1rem; }
+            .product-name { font-size: 0.82rem; }
+            .product-price { font-size: 0.95rem; }
+            .btn-add-to-cart { padding: 6px 10px; font-size: 0.75rem; }
+        }
         
         .additives-section {
             background: #fff8e1;
@@ -298,19 +329,37 @@
     <script>
         let protectionSchemes = null;
         let products = null;
-        
+        const SITE_VERSION = '20260527';
+
         async function loadData() {
             try {
-                const schemesResp = await fetch('./protection_schemes.json?v=' + Date.now());
+                const schemesResp = await fetch('./protection_schemes.json?v=' + SITE_VERSION);
                 if (!schemesResp.ok) throw new Error('protection_schemes.json не знайдено');
                 protectionSchemes = await schemesResp.json();
-                
-                const productsResp = await fetch('./products.json?v=' + Date.now());
+
+                const productsResp = await fetch('./products.json?v=' + SITE_VERSION);
                 if (!productsResp.ok) throw new Error('products.json не знайдено');
-                products = await productsResp.json();
-                
-                console.log(`✅ Схеми завантажені`);
-                console.log(`✅ Товари завантажені`);
+                const rawProducts = await productsResp.json();
+
+                // img-map: кешуємо у sessionStorage
+                let imgs = {};
+                const cached = sessionStorage.getItem('agronom_img_map_v2');
+                if (cached) {
+                    imgs = JSON.parse(cached);
+                } else {
+                    const imgResp = await fetch('./img-map.json');
+                    if (imgResp.ok) {
+                        imgs = await imgResp.json();
+                        try { sessionStorage.setItem('agronom_img_map_v2', JSON.stringify(imgs)); } catch(e) {}
+                    }
+                }
+
+                products = rawProducts.map(function(p) {
+                    return Object.assign({}, p, { img: imgs[p.n] || p.img || '' });
+                });
+
+                console.log('✅ Схеми завантажені');
+                console.log('✅ Товари завантажені:', products.length, '| з фото:', products.filter(function(p){return p.img;}).length);
                 // renderCategories викликається ззовні після перевірки URL-параметрів
             } catch(e) {
                 console.error('❌ Помилка:', e);
@@ -387,6 +436,52 @@
             return found;
         }
 
+        // ── Автовибір етапу за поточним місяцем ───────────
+        const MONTH_NAMES = {
+            'січень':1,'лютого':1,'лютий':2,'березень':3,'берез':3,
+            'квітень':4,'квітн':4,'травень':5,'трав':5,'червень':6,'черв':6,
+            'липень':7,'лип':7,'серпень':8,'серп':8,'вересень':9,'верес':9,
+            'жовтень':10,'жовт':10,'листопад':11,'листопад':11,'грудень':12,'груд':12
+        };
+
+        function extractMonths(text) {
+            const t = text.toLowerCase();
+            const found = [];
+            for (const [name, m] of Object.entries(MONTH_NAMES)) {
+                if (t.includes(name)) found.push(m);
+            }
+            return [...new Set(found)].sort((a,b)=>a-b);
+        }
+
+        function bestStageIdx(treatments) {
+            const now = new Date().getMonth() + 1; // 1-12
+            let bestIdx = 0, bestScore = -1;
+
+            treatments.forEach(function(t, i) {
+                const months = extractMonths(t.stage + ' ' + (t.date||''));
+                if (!months.length) return;
+
+                // Знаходимо мінімальну відстань до поточного місяця
+                let minDist = 12;
+                months.forEach(function(m) {
+                    // Кільцева відстань (рік циклічний)
+                    const d = Math.min(Math.abs(m - now), 12 - Math.abs(m - now));
+                    if (d < minDist) minDist = d;
+                });
+
+                // Якщо місяць потрапляє у діапазон — відстань 0
+                if (months.length >= 2) {
+                    const lo = months[0], hi = months[months.length - 1];
+                    if (now >= lo && now <= hi) minDist = 0;
+                }
+
+                const score = 12 - minDist;
+                if (score > bestScore) { bestScore = score; bestIdx = i; }
+            });
+
+            return bestIdx;
+        }
+
         // ── Стан ──────────────────────────────────────────
         let currentCategoryKey = null;
         let currentSchemeIdx   = 0;
@@ -395,7 +490,9 @@
         function showSchemes(categoryKey, targetSchemeId = null) {
             currentCategoryKey = categoryKey;
             currentSchemeIdx   = 0;
-            currentStageIdx    = 0;
+            // Авто-визначення актуального етапу
+            const cat0 = protectionSchemes.protection_schemes[categoryKey];
+            currentStageIdx = bestStageIdx(cat0.schemes[0].treatments || []);
 
             const container      = document.getElementById('categories');
             const schemesContainer = document.getElementById('schemes-container');
@@ -423,17 +520,42 @@
             let html = '<div class="scheme-tabs">';
             cat.schemes.forEach(function(s, i) {
                 const active = i === currentSchemeIdx ? ' active' : '';
-                html += '<button class="scheme-tab' + active + '" onclick="selectScheme(' + i + ')">' + s.name.replace(/—.*/, '').trim() + '</button>';
+                const isSyn  = /syngenta/i.test(s.name);
+
+                // Коротка назва: якщо є " — ", берємо частину після тире
+                const parts = s.name.split(/\s*[—-]\s*/);
+                let label;
+                if (parts.length >= 2) {
+                    // "Яблуня — схема Syngenta" → "Яблуня · Syngenta"
+                    // "Яблуня — повна схема захисту" → "Яблуня · повна"
+                    const right = parts.slice(1).join(' ')
+                        .replace(/схема\s*/i, '')
+                        .replace(/Syngenta/i, '')
+                        .replace(/захисту?/i, '')
+                        .trim();
+                    label = parts[0].trim() + (right ? ' · ' + right : '');
+                } else {
+                    label = s.name;
+                }
+
+                const synBadge = isSyn
+                    ? ' <span style="font-size:0.65rem;font-weight:700;background:#e07b00;color:white;border-radius:3px;padding:1px 5px;margin-left:3px;vertical-align:middle;">SYN</span>'
+                    : '';
+                const synStyle = isSyn && active ? ' style="border-color:#e07b00;"' : (isSyn ? ' style="border-color:#e07b00;color:#b35f00;"' : '');
+
+                html += '<button class="scheme-tab' + active + '"' + synStyle + ' onclick="selectScheme(' + i + ')">' + label + synBadge + '</button>';
             });
             html += '</div>';
 
             // ── 2. Кнопки етапів ───────────────────────────────
+            const autoStage = bestStageIdx(scheme.treatments);
             html += '<div class="stage-tabs">';
             scheme.treatments.forEach(function(t, i) {
                 const active = i === currentStageIdx ? ' active' : '';
-                // Коротка назва: прибрати номер і emoji
                 const label = t.stage.replace(/^\d+\.\s*[^\s]*\s*/, '').split('—')[0].trim();
-                html += '<button class="stage-tab' + active + '" onclick="selectStage(' + i + ')">' + label + '</button>';
+                const isCurrent = (i === autoStage);
+                const badge = isCurrent ? ' <span style="font-size:0.65rem;background:rgba(255,255,255,0.3);border-radius:4px;padding:1px 5px;vertical-align:middle;">🗓️ зараз</span>' : '';
+                html += '<button class="stage-tab' + active + '" onclick="selectStage(' + i + ')">' + label + badge + '</button>';
             });
             html += '</div>';
 
@@ -445,7 +567,8 @@
 
         function selectScheme(idx) {
             currentSchemeIdx = idx;
-            currentStageIdx  = 0;
+            const scheme = protectionSchemes.protection_schemes[currentCategoryKey].schemes[idx];
+            currentStageIdx = bestStageIdx(scheme.treatments || []);
             renderSchemePage();
         }
 
@@ -473,14 +596,19 @@
                     const stockClass = inStock ? 'in-stock' : 'out-of-stock';
                     const stockText  = inStock ? '✅ в наявності' : '❌ немає';
                     const priceText  = product.p ? product.p + ' грн' : 'договір';
+                    const safeName  = product.n.replace(/'/g, "\\'");
+                    const addDisabled = inStock ? '' : ' disabled style="opacity:.45;cursor:not-allowed"';
+                    const photoBlock = product.img
+                        ? '<img class="product-photo" src="' + product.img + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">'
+                        : '<div class="product-photo-placeholder">🧪</div>';
                     html += '<div class="product-item">';
-                    html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || '') + '</div></div>';
+                    html += photoBlock;
+                    html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || product.c || '') + '</div></div>';
+                    html += '<div class="product-right">';
                     html += '<div class="product-price">' + priceText + '</div>';
                     html += '<div class="product-stock ' + stockClass + '">' + stockText + '</div>';
-                    const safeName = product.n.replace(/'/g, "\\'");
-                    const addDisabled = inStock ? '' : ' disabled style="opacity:.45;cursor:not-allowed"';
                     html += '<button class="btn-add-to-cart"' + addDisabled + ' onclick="addToCartScheme(\'' + safeName + '\',' + (product.p || 0) + ',this)">🛒 Додати</button>';
-                    html += '</div>';
+                    html += '</div></div>';
                 });
                 html += '</div>';
             } else {
@@ -508,12 +636,17 @@
                     const priceText  = product.p ? product.p + ' грн' : 'договір';
                     const safeName  = product.n.replace(/'/g, "\\'");
                     const addDisabled = inStock ? '' : ' disabled style="opacity:.45;cursor:not-allowed"';
+                    const photoBlock = product.img
+                        ? '<img class="product-photo" src="' + product.img + '" alt="" loading="lazy">'
+                        : '<div class="product-photo-placeholder">🌿</div>';
                     html += '<div class="product-item">';
-                    html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || '') + '</div></div>';
+                    html += photoBlock;
+                    html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || product.c || '') + '</div></div>';
+                    html += '<div class="product-right">';
                     html += '<div class="product-price">' + priceText + '</div>';
                     html += '<div class="product-stock ' + stockClass + '">' + stockText + '</div>';
                     html += '<button class="btn-add-to-cart"' + addDisabled + ' onclick="addToCartScheme(\'' + safeName + '\',' + (product.p || 0) + ',this)">🛒 Додати</button>';
-                    html += '</div>';
+                    html += '</div></div>';
                 });
                 html += '</div></div>';
             }
