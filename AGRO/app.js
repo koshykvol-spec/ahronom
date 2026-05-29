@@ -2,7 +2,7 @@
 // ЗАВАНТАЖЕННЯ ТОВАРІВ З JSON (замість хардкоду)
 // ==========================================
 
-const SITE_VERSION = '20260527'; // оновлювати при зміні товарів
+const SITE_VERSION = '20260529'; // оновлювати при зміні товарів
 
 let products = [];
 let renderedProducts = []; // для модального вікна товару
@@ -11,7 +11,7 @@ async function loadProducts() {
     try {
         // img-map кешуємо у sessionStorage — між переходами по категоріях
         let imgs = {};
-        const cachedMap = sessionStorage.getItem('agronom_img_map_v2');
+        const cachedMap = sessionStorage.getItem('agronom_img_map_v3');
         if (cachedMap) {
             imgs = JSON.parse(cachedMap);
         }
@@ -21,10 +21,10 @@ async function loadProducts() {
         const prod = await prodResp.json();
 
         if (!cachedMap) {
-            const imgResp = await fetch('img-map.json');
+            const imgResp = await fetch('img-map.json?v=' + SITE_VERSION);
             if (imgResp.ok) {
                 imgs = await imgResp.json();
-                try { sessionStorage.setItem('agronom_img_map_v2', JSON.stringify(imgs)); } catch(e) {}
+                try { sessionStorage.setItem('agronom_img_map_v3', JSON.stringify(imgs)); } catch(e) {}
             }
         }
 
@@ -422,12 +422,16 @@ function render(arr) {
                 <div class="price">${p.p.toFixed(2)} грн ${isWeight ? '<small>/кг</small>' : ''}</div>
                 
                 ${isWeight ? `
-                    <div style="margin: 10px 0; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <div style="margin: 10px 0; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        <button onclick="(function(){var i=document.getElementById('qty-${idx}');var v=Math.round((parseFloat(i.value||0)-0.05)*100)/100;i.value=v<0.05?0.05:v;})()" 
+                                style="width:30px;height:36px;border:2px solid #27ae60;background:#e8f5e8;border-radius:6px;font-size:1.1rem;font-weight:bold;cursor:pointer;color:#2d6a2d;line-height:1;padding:0;">&#8722;</button>
                         <input type="number" id="qty-${idx}" 
-                               value="1" 
-                               step="0.01" 
-                               min="0.01" 
-                               style="width: 80px; padding: 8px; border-radius: 6px; border: 2px solid #27ae60; text-align: center; font-weight: bold;">
+                               value="0.05" 
+                               step="0.05" 
+                               min="0.05" 
+                               style="width: 68px; padding: 8px 4px; border-radius: 6px; border: 2px solid #27ae60; text-align: center; font-weight: bold;">
+                        <button onclick="(function(){var i=document.getElementById('qty-${idx}');i.value=Math.round((parseFloat(i.value||0)+0.05)*100)/100;})()" 
+                                style="width:30px;height:36px;border:2px solid #27ae60;background:#e8f5e8;border-radius:6px;font-size:1.1rem;font-weight:bold;cursor:pointer;color:#2d6a2d;line-height:1;padding:0;">+</button>
                         <span style="font-weight: bold; color: #555;">кг</span>
                     </div>
                     <button class="btn" onclick="addWeightToCart('${safeName}', ${p.p}, ${idx}, 'кг')">ДОДАТИ</button>
@@ -1000,7 +1004,7 @@ function openProductModal(idx) {
     const qtyHtml = isWeight ? `
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
             <span style="font-size:.9rem; color:#555; white-space:nowrap;">Кількість:</span>
-            <input id="modal-qty" type="number" value="1" step="0.01" min="0.01"
+            <input id="modal-qty" type="number" value="0.05" step="0.05" min="0.05"
                 style="width:90px; padding:8px 10px; border:2px solid #27ae60;
                        border-radius:8px; font-size:1rem; font-weight:bold; text-align:center;">
             <span style="font-size:.9rem; color:#555;">кг</span>
