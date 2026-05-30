@@ -152,9 +152,24 @@
             align-items: center;
             gap: 12px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-            transition: box-shadow .15s;
+            transition: box-shadow .15s, transform .15s, border-color .15s;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            user-select: none;
         }
-        .product-item:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+        .product-item:hover {
+            box-shadow: 0 4px 14px rgba(45,106,45,0.18);
+            transform: translateY(-2px);
+            border-color: #4a9c4a;
+        }
+        .product-item:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+        }
+        .product-item.added {
+            border-color: #2d6a2d;
+            background: #f0f8f0;
+        }
 
         .product-photo {
             width: 58px; height: 58px;
@@ -179,6 +194,8 @@
         .product-brand { font-size: 0.75rem; color: #aaa; margin-top: 2px; text-transform: uppercase; letter-spacing: .04em; }
 
         .product-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+        .product-item::after { content: "›"; font-size: 1.4rem; color: #b0ccb0; align-self: center; margin-left: 2px; flex-shrink: 0; transition: color .2s, transform .2s; }
+        .product-item:hover::after { color: #2d6a2d; transform: translateX(3px); }
         .product-price { font-weight: 700; color: #2d6a2d; font-size: 1.05rem; white-space: nowrap; }
 
         .product-stock {
@@ -578,6 +595,9 @@
         }
 
         function renderTreatment(treatment) {
+            // Скидаємо реєстр перед кожним рендером — індекси актуальні лише для поточної стадії
+            if (typeof productRegistry !== 'undefined') productRegistry = [];
+
             const foundProducts = findProductsForTreatment(treatment);
             const additives     = findAdditivesForTreatment(treatment);
 
@@ -592,22 +612,21 @@
             if (foundProducts.length > 0) {
                 html += '<div class="products-list">';
                 foundProducts.forEach(function(product) {
-                    const inStock   = product.inStock !== false;
+                    const inStock    = product.inStock !== false;
                     const stockClass = inStock ? 'in-stock' : 'out-of-stock';
                     const stockText  = inStock ? '✅ в наявності' : '❌ немає';
                     const priceText  = product.p ? product.p + ' грн' : 'договір';
-                    const safeName  = product.n.replace(/'/g, "\\'");
-                    const addDisabled = inStock ? '' : ' disabled style="opacity:.45;cursor:not-allowed"';
+                    const safeIdx    = productRegistry.length;
+                    productRegistry.push(product);
                     const photoBlock = product.img
                         ? '<img class="product-photo" src="' + product.img + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">'
                         : '<div class="product-photo-placeholder">🧪</div>';
-                    html += '<div class="product-item">';
+                    html += '<div class="product-item" onclick="openProductCard(' + safeIdx + ')">';
                     html += photoBlock;
                     html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || product.c || '') + '</div></div>';
                     html += '<div class="product-right">';
                     html += '<div class="product-price">' + priceText + '</div>';
                     html += '<div class="product-stock ' + stockClass + '">' + stockText + '</div>';
-                    html += '<button class="btn-add-to-cart"' + addDisabled + ' onclick="addToCartScheme(\'' + safeName + '\',' + (product.p || 0) + ',this)">🛒 Додати</button>';
                     html += '</div></div>';
                 });
                 html += '</div>';
@@ -630,22 +649,21 @@
                 html += '</div>';
                 html += '<div class="products-list">';
                 additives.forEach(function(product) {
-                    const inStock   = product.inStock !== false;
+                    const inStock    = product.inStock !== false;
                     const stockClass = inStock ? 'in-stock' : 'out-of-stock';
                     const stockText  = inStock ? '✅ в наявності' : '❌ немає';
                     const priceText  = product.p ? product.p + ' грн' : 'договір';
-                    const safeName  = product.n.replace(/'/g, "\\'");
-                    const addDisabled = inStock ? '' : ' disabled style="opacity:.45;cursor:not-allowed"';
+                    const safeIdx    = productRegistry.length;
+                    productRegistry.push(product);
                     const photoBlock = product.img
                         ? '<img class="product-photo" src="' + product.img + '" alt="" loading="lazy">'
                         : '<div class="product-photo-placeholder">🌿</div>';
-                    html += '<div class="product-item">';
+                    html += '<div class="product-item" onclick="openProductCard(' + safeIdx + ')">';
                     html += photoBlock;
                     html += '<div class="product-info"><div class="product-name">' + product.n + '</div><div class="product-brand">' + (product.b || product.c || '') + '</div></div>';
                     html += '<div class="product-right">';
                     html += '<div class="product-price">' + priceText + '</div>';
                     html += '<div class="product-stock ' + stockClass + '">' + stockText + '</div>';
-                    html += '<button class="btn-add-to-cart"' + addDisabled + ' onclick="addToCartScheme(\'' + safeName + '\',' + (product.p || 0) + ',this)">🛒 Додати</button>';
                     html += '</div></div>';
                 });
                 html += '</div></div>';
@@ -719,11 +737,14 @@
             saveCart(cart);
             updateFloat(cart);
             if (btn) {
+                const card = btn.closest ? btn.closest('.product-item') : null;
                 btn.textContent = '✓ Додано';
                 btn.style.background = '#1a3a1a';
+                if (card) card.classList.add('added');
                 setTimeout(function() {
                     btn.textContent = '🛒 Додати';
                     btn.style.background = '';
+                    if (card) card.classList.remove('added');
                 }, 900);
             }
         };
@@ -740,3 +761,98 @@
     </script>
 </body>
 </html>
+
+<script>
+// ── Реєстр товарів для модального вікна ──────────────────────
+var productRegistry = [];
+
+window.openProductCard = function(idx) {
+    var p = productRegistry[idx];
+    if (!p) return;
+
+    var old = document.getElementById('scheme-product-modal');
+    if (old) old.remove();
+
+    var inStock   = p.inStock !== false;
+    var price     = p.p;
+    var priceText = price ? (typeof price === 'number' ? price.toFixed(2) : price) + ' грн' : 'договір';
+
+    var imgHtml = p.img
+        ? '<img src="' + p.img + '" alt="" style="width:100%;max-height:260px;object-fit:contain;border-radius:10px;margin-bottom:16px;display:block;">'
+        : '';
+
+    var annotHtml = p.annot
+        ? '<p style="font-size:.92rem;color:#444;line-height:1.65;margin:0 0 16px;border-left:3px solid #4a9c4a;padding-left:10px;">' + p.annot + '</p>'
+        : '';
+
+    var brandHtml = (p.b || p.c)
+        ? '<div style="font-size:.78rem;color:#999;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">' + (p.b || p.c) + '</div>'
+        : '';
+
+    var stockBadge = inStock
+        ? '<span style="background:#d4edda;color:#155724;padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:600;">✅ в наявності</span>'
+        : '<span style="background:#f8d7da;color:#721c24;padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:600;">❌ немає</span>';
+
+    var addBtnHtml = inStock
+        ? '<button id="scheme-modal-add-btn" onclick="addFromSchemeModal(' + idx + ')" style="flex:1;padding:13px;background:#2d6a2d;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:bold;cursor:pointer;">🛒 Додати в кошик</button>'
+        : '<button disabled style="flex:1;padding:13px;background:#ccc;color:#888;border:none;border-radius:10px;font-size:1rem;font-weight:bold;cursor:not-allowed;">❌ Немає в наявності</button>';
+
+    var modal = document.createElement('div');
+    modal.id = 'scheme-product-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:20000;padding:16px;box-sizing:border-box;';
+
+    modal.innerHTML =
+        '<div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);position:relative;box-sizing:border-box;">'
+        + '<button onclick="closeProductCard()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.6rem;cursor:pointer;color:#888;line-height:1;">✕</button>'
+        + '<h3 style="margin:0 0 4px;padding-right:28px;font-size:1.05rem;color:#1a2e1a;line-height:1.4;">' + p.n + '</h3>'
+        + brandHtml
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
+        +   '<span style="font-size:1.25rem;font-weight:800;color:#2d6a2d;">' + priceText + '</span>'
+        +   stockBadge
+        + '</div>'
+        + imgHtml
+        + annotHtml
+        + '<div style="display:flex;gap:10px;margin-top:4px;">'
+        +   addBtnHtml
+        +   '<button onclick="closeProductCard()" style="padding:13px 18px;background:#f0f0f0;color:#555;border:none;border-radius:10px;font-size:1rem;font-weight:bold;cursor:pointer;">Закрити</button>'
+        + '</div>'
+        + '</div>';
+
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeProductCard(); });
+};
+
+window.addFromSchemeModal = function(idx) {
+    var p = productRegistry[idx];
+    if (!p || p.inStock === false) return;
+    var CART_KEY = 'agronom_cart';
+    var cart;
+    try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch(e) { cart = []; }
+    var item = cart.find(function(i) { return i.n === p.n; });
+    if (item) { item.q++; } else { cart.push({ n: p.n, p: p.p, q: 1 }); }
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+
+    // оновити лічильник плаваючої кнопки
+    var total = cart.reduce(function(s, i) { return s + i.q; }, 0);
+    var countEl = document.getElementById('cart-count');
+    var fltEl   = document.getElementById('cart-float');
+    if (countEl) countEl.textContent = total;
+    if (fltEl)   fltEl.style.display = total > 0 ? 'block' : 'none';
+
+    // фідбек на кнопці
+    var btn = document.getElementById('scheme-modal-add-btn');
+    if (btn) {
+        btn.textContent = '✓ Додано!';
+        btn.style.background = '#1a3a1a';
+        setTimeout(function() {
+            btn.textContent = '🛒 Додати в кошик';
+            btn.style.background = '#2d6a2d';
+        }, 1000);
+    }
+};
+
+window.closeProductCard = function() {
+    var m = document.getElementById('scheme-product-modal');
+    if (m) m.remove();
+};
+</script>
