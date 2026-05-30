@@ -24,6 +24,9 @@
 
 <div class="container">
     <input type="text" id="search" class="search-box" placeholder="Шукати товари..." oninput="applyFilters()">
+    <!-- Сезонний помічник "Що зараз робити?" -->
+    <div id="seasonal-helper-container"></div>
+
     <div id="recipes-container"></div> 
     <!-- Навігація генерується через renderMainNav() у app.js -->
     <div class="cat-scroll" id="main-nav"></div>
@@ -37,6 +40,7 @@
 
 <script src="cart.js"></script>
 <script src="app.js"></script>
+<script src="seasonal-helper.js"></script>
 
 </body>
 </html>
