@@ -1,5 +1,5 @@
 // ==========================================
-// СЕЗОННИЙ ПОМІЧНИК — "Що зараз робити?"
+// СЕЗОННИЙ ПОМІЧНИК v3 — "Мій сад / Город / Теплиця"
 // Підключати після app.js: <script src="seasonal-helper.js"></script>
 // Рендерить блок у <div id="seasonal-helper-container">
 // ==========================================
@@ -7,119 +7,358 @@
 (function () {
     'use strict';
 
-    // ── Мапа культур ──────────────────────────────────────────────
-    // id — збігається з SCHEME_LINKS у app.js та стадіями в protection_schemes.json
-    const CULTURES = [
-        { id: 'apple',       label: '🍎 Яблуня',    schemeCategory: 'pomaceous_fruits', schemeId: 'apple_protection'  },
-        { id: 'pear',        label: '🍐 Груша',      schemeCategory: 'pomaceous_fruits', schemeId: 'pear_protection'   },
-        { id: 'cherry',      label: '🍒 Черешня',    schemeCategory: 'stone_fruits',     schemeId: 'cherry_sweet_protection' },
-        { id: 'grapes',      label: '🍇 Виноград',   schemeCategory: 'grapes',           schemeId: 'grapes_full_protection' },
-        { id: 'tomato',      label: '🍅 Томати',     schemeCategory: 'vegetables',       schemeId: 'tomato_greenhouse' },
-        { id: 'cucumber',    label: '🥒 Огірки',     schemeCategory: 'vegetables',       schemeId: 'cucumber_protection' },
-        { id: 'grain_wheat', label: '🌾 Пшениця',   schemeCategory: 'grain_crops',      schemeId: 'wheat_spring'      },
-        { id: 'grain_corn',  label: '🌽 Кукурудза', schemeCategory: 'grain_crops',      schemeId: 'corn_protection'   },
+    // ── Групи та культури ─────────────────────────────────────────
+    const GROUPS = [
+        {
+            id: 'garden',
+            label: '🍎 Мій сад',
+            cultures: [
+                { id: 'apple',       label: '🍎 Яблуня',    schemeCategory: 'pomaceous_fruits', schemeId: 'apple_protection'        },
+                { id: 'pear',        label: '🍐 Груша',      schemeCategory: 'pomaceous_fruits', schemeId: 'pear_protection'         },
+                { id: 'cherry',      label: '🍒 Черешня',    schemeCategory: 'stone_fruits',     schemeId: 'cherry_sweet_protection' },
+                { id: 'cherry_sour', label: '🍒 Вишня',      schemeCategory: 'stone_fruits',     schemeId: 'cherry_sour_protection'  },
+                { id: 'plum',        label: '🫐 Слива',      schemeCategory: 'stone_fruits',     schemeId: 'plum_protection'         },
+                { id: 'grapes',      label: '🍇 Виноград',   schemeCategory: 'grapes',           schemeId: 'grapes_full_protection'  },
+                { id: 'strawberry',  label: '🍓 Суниця',     schemeCategory: 'berries',          schemeId: 'strawberry_full'         },
+                { id: 'raspberry',   label: '🫐 Малина',     schemeCategory: 'berries',          schemeId: 'raspberry_protection'    },
+                { id: 'currant',     label: '🍇 Смородина',  schemeCategory: 'berries',          schemeId: 'currant_protection'      },
+            ]
+        },
+        {
+            id: 'vegetable',
+            label: '🥕 Мій город',
+            cultures: [
+                { id: 'tomato_open', label: '🍅 Томати',     schemeCategory: 'vegetables', schemeId: 'tomato_open'          },
+                { id: 'cabbage',     label: '🥬 Капуста',    schemeCategory: 'vegetables', schemeId: 'cabbage_protection'   },
+                { id: 'carrot',      label: '🥕 Морква',     schemeCategory: 'vegetables', schemeId: 'carrot_protection'    },
+                { id: 'onion',       label: '🧅 Цибуля',     schemeCategory: 'vegetables', schemeId: 'onion_protection'     },
+                { id: 'beet',        label: '🫚 Буряк',      schemeCategory: 'vegetables', schemeId: 'beet_protection'      },
+                { id: 'grain_wheat', label: '🌾 Пшениця',   schemeCategory: 'grain_crops', schemeId: 'wheat_spring'         },
+                { id: 'grain_corn',  label: '🌽 Кукурудза', schemeCategory: 'grain_crops', schemeId: 'corn_protection'      },
+            ]
+        },
+        {
+            id: 'greenhouse',
+            label: '🌿 Моя теплиця',
+            cultures: [
+                { id: 'tomato_gh',   label: '🍅 Томати',     schemeCategory: 'vegetables', schemeId: 'tomato_greenhouse'    },
+                { id: 'cucumber',    label: '🥒 Огірки',     schemeCategory: 'vegetables', schemeId: 'cucumber_protection'  },
+                { id: 'pepper',      label: '🌶️ Перець',     schemeCategory: 'vegetables', schemeId: 'pepper_syngenta'      },
+            ]
+        },
     ];
 
+    // Плоский список усіх культур (для пошуку по id)
+    const ALL_CULTURES = GROUPS.reduce(function(acc, g) { return acc.concat(g.cultures); }, []);
+
     // ── Місячна прив'язка стадій ──────────────────────────────────
-    // Для кожної культури: { місяць(0-11) → індекс стадії у схемі }
-    // Місяці без активної стадії — null (не сезон)
     const MONTH_TO_STAGE = {
-        apple_protection: {
-            2: 0,  // Березень  → стадія 1 (рання весна)
-            3: 1,  // Квітень   → стадія 2 (рожевий бутон)
-            4: 3,  // Травень   → стадія 4 (після цвітіння) — стадія 3 "не обробляти"
-            5: 4,  // Червень   → стадія 5 (літо 1)
-            6: 5,  // Липень    → стадія 6 (літо 2)
-            7: 6,  // Серпень   → стадія 7 (перед збором)
-            8: 6,  // Вересень  → стадія 7
-            9: 7,  // Жовтень   → стадія 8 (після збору)
-        },
-        pear_protection: {
-            2: 0, 3: 1, 4: 3, 5: 4, 6: 5, 7: 6, 8: 6, 9: 7,
-        },
-        cherry_sweet_protection: {
-            2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 5, 9: 6,
-        },
-        grapes_full_protection: {
-            3: 0, 4: 1, 5: 2, 6: 3, 7: 4, 8: 5, 9: 6,
-        },
-        tomato_greenhouse: {
-            2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 5,
-        },
-        cucumber_protection: {
-            2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 4,
-        },
-        wheat_spring: {
-            2: 0, 3: 1, 4: 2, 5: 3,
-        },
-        corn_protection: {
-            3: 0, 4: 1, 5: 2, 6: 3, 7: 4,
-        },
+        apple_protection:        { 2:0, 3:1, 4:3, 5:4, 6:5, 7:6, 8:6, 9:7 },
+        pear_protection:         { 2:0, 3:1, 4:3, 5:4, 6:5, 7:6, 8:6, 9:7 },
+        cherry_sweet_protection: { 2:0, 3:1, 4:2, 5:3, 6:4, 7:5, 8:5, 9:6 },
+        cherry_sour_protection:  { 2:0, 3:1, 4:2, 5:3, 6:4, 7:5, 8:5, 9:6 },
+        plum_protection:         { 2:0, 3:1, 4:2, 5:3, 6:4, 7:5, 8:5, 9:6 },
+        grapes_full_protection:  { 3:0, 4:1, 5:2, 6:3, 7:4, 8:5, 9:6 },
+        strawberry_full:         { 3:0, 4:1, 5:2 },
+        raspberry_protection:    { 3:0, 4:1, 5:2, 6:2 },
+        currant_protection:      { 3:0, 4:1, 5:2, 6:2 },
+        tomato_open:             { 3:0, 4:1, 5:2, 6:2, 7:2 },
+        tomato_greenhouse:       { 2:0, 3:1, 4:2, 5:3, 6:3, 7:3 },
+        cucumber_protection:     { 3:0, 4:1, 5:2, 6:2, 7:2 },
+        pepper_syngenta:         { 2:0, 3:1, 4:2, 5:3, 6:4, 7:6 },
+        cabbage_protection:      { 3:0, 4:1, 5:2, 6:2 },
+        carrot_protection:       { 3:0, 4:1, 5:1, 6:1 },
+        onion_protection:        { 3:0, 4:1, 5:1, 6:1 },
+        beet_protection:         { 3:0, 4:1, 5:1, 6:1, 7:2 },
+        wheat_spring:            { 2:0, 3:1, 4:2, 5:3 },
+        corn_protection:         { 3:0, 4:1, 5:2, 6:3, 7:4 },
     };
 
-    // ── CSS ───────────────────────────────────────────────────────
+    const MONTH_NAMES = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
+                         'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+
+    // ── localStorage ─────────────────────────────────────────────
+    const KEY_GARDEN = 'my_garden_v1';   // масив id культур
+    const KEY_SETUP  = 'my_garden_setup';
+    const CART_KEY   = 'agronom_cart';
+
+    // ── Стан ─────────────────────────────────────────────────────
+    let myGarden        = [];
+    let setupDone       = false;
+    let activeCultureId = null;
+    let activeGroupId   = null; // яка група відкрита в онбордингу
+    let schemesData     = null;
+
+    function loadState() {
+        try {
+            myGarden  = JSON.parse(localStorage.getItem(KEY_GARDEN)) || [];
+            setupDone = localStorage.getItem(KEY_SETUP) === 'done' && myGarden.length > 0;
+            if (setupDone && !activeCultureId) activeCultureId = myGarden[0];
+        } catch(e) { myGarden = []; setupDone = false; }
+
+        // Початкова активна група онбордингу
+        if (!activeGroupId) activeGroupId = GROUPS[0].id;
+    }
+
+    function saveGarden() {
+        localStorage.setItem(KEY_GARDEN, JSON.stringify(myGarden));
+        localStorage.setItem(KEY_SETUP, myGarden.length > 0 ? 'done' : '');
+    }
+
+    // ── Схеми ────────────────────────────────────────────────────
+    async function loadSchemes() {
+        if (schemesData) return;
+        try {
+            const v = (typeof SITE_VERSION !== 'undefined') ? SITE_VERSION : Date.now();
+            const r = await fetch('protection_schemes.json?v=' + v);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            schemesData = await r.json();
+        } catch(e) { console.warn('seasonal-helper:', e); }
+    }
+
+    function getCurrentStage(culture) {
+        if (!schemesData) return null;
+        const month    = new Date().getMonth();
+        const stageMap = MONTH_TO_STAGE[culture.schemeId];
+        if (!stageMap) return null;
+        const idx = stageMap[month];
+        if (idx === undefined) return null;
+        const cat = schemesData.protection_schemes[culture.schemeCategory];
+        if (!cat) return null;
+        const scheme = (cat.schemes || []).find(function(s) { return s.id === culture.schemeId; });
+        return scheme && scheme.treatments ? (scheme.treatments[idx] || null) : null;
+    }
+
+    function findProduct(name) {
+        if (typeof products === 'undefined' || !products.length) return null;
+        const kw = name.toLowerCase();
+        return products.find(function(p) {
+            return p.n.toLowerCase().includes(kw) &&
+                   (p.c || '').toLowerCase().includes('агрохімік') &&
+                   p.inStock !== false;
+        }) || null;
+    }
+
+    function addToCart(name, price) {
+        let arr;
+        try { arr = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch(e) { arr = []; }
+        const item = arr.find(function(i) { return i.n === name; });
+        if (item) { item.q++; } else { arr.push({ n: name, p: price, q: 1 }); }
+        localStorage.setItem(CART_KEY, JSON.stringify(arr));
+        if (typeof cart !== 'undefined') {
+            const g = cart.find(function(i) { return i.n === name; });
+            if (g) { g.q++; } else { cart.push({ n: name, p: price, q: 1 }); }
+        }
+        if (typeof updateCartUI === 'function') updateCartUI();
+        try {
+            const total = arr.reduce(function(s, i) { return s + (i.q || 0); }, 0);
+            const ce = document.getElementById('cart-count');
+            const fe = document.getElementById('cart-float');
+            if (ce) ce.textContent = total;
+            if (fe) fe.style.display = total > 0 ? 'block' : 'none';
+        } catch(e) {}
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // CSS
+    // ══════════════════════════════════════════════════════════════
     const CSS = `
-    #seasonal-helper-container {
-        margin-bottom: 20px;
-    }
-    .sh-block {
+    #seasonal-helper-container { margin-bottom: 20px; }
+
+    /* ── Онбординг ── */
+    .sh-onboard {
         background: linear-gradient(135deg, #e8f5e8 0%, #f0faf0 100%);
-        border-radius: 14px;
-        padding: 18px 18px 16px;
         border: 1.5px solid #c5e0c5;
+        border-radius: 14px;
+        padding: 18px 16px 16px;
     }
-    .sh-title {
+    .sh-onboard-title {
         font-family: 'Nunito', sans-serif;
-        font-size: 0.82rem;
+        font-size: 1rem;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #2d6a2d;
-        margin-bottom: 12px;
+        color: #1a3a1a;
+        margin-bottom: 3px;
     }
-    .sh-cultures {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+    .sh-onboard-sub {
+        font-size: 0.8rem;
+        color: #5a7a5a;
         margin-bottom: 14px;
     }
-    .sh-culture-btn {
+
+    /* Групи-таби в онбордингу */
+    .sh-group-tabs {
+        display: flex;
+        gap: 7px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    .sh-group-tab {
         background: white;
         border: 1.5px solid #c8e0c8;
         color: #2d6a2d;
-        padding: 7px 14px;
+        padding: 7px 15px;
         border-radius: 20px;
+        cursor: pointer;
+        font-family: 'Nunito', sans-serif;
+        font-weight: 700;
+        font-size: 0.85rem;
+        transition: all 0.15s;
+        white-space: nowrap;
+        position: relative;
+    }
+    .sh-group-tab:hover { background: #d8efd8; border-color: #4a9c4a; }
+    .sh-group-tab.active { background: #2d6a2d; color: white; border-color: #2d6a2d; }
+    .sh-group-tab .sh-count-badge {
+        display: none;
+        position: absolute;
+        top: -6px; right: -6px;
+        background: #e74c3c;
+        color: white;
+        border-radius: 50%;
+        width: 18px; height: 18px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+    }
+    .sh-group-tab .sh-count-badge.visible { display: flex; }
+
+    /* Сітка культур */
+    .sh-culture-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 7px;
+        margin-bottom: 14px;
+        min-height: 52px;
+    }
+    .sh-culture-check {
+        background: white;
+        border: 2px solid #c8e0c8;
+        color: #2d6a2d;
+        padding: 9px 8px;
+        border-radius: 10px;
         cursor: pointer;
         font-family: 'Nunito', sans-serif;
         font-weight: 600;
         font-size: 0.85rem;
-        transition: all 0.18s;
-        white-space: nowrap;
+        text-align: center;
+        transition: all 0.15s;
+        user-select: none;
+        line-height: 1.3;
     }
-    .sh-culture-btn:hover {
-        background: #d8efd8;
-        border-color: #4a9c4a;
+    .sh-culture-check:hover { border-color: #4a9c4a; background: #f0f8f0; }
+    .sh-culture-check.selected { background: #2d6a2d; color: white; border-color: #2d6a2d; }
+    .sh-culture-check.selected::after { content: ' ✓'; }
+
+    /* Підсумок вибраного + кнопка */
+    .sh-summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
     }
-    .sh-culture-btn.active {
+    .sh-summary-text {
+        flex: 1;
+        font-size: 0.8rem;
+        color: #5a7a5a;
+        min-width: 120px;
+    }
+    .sh-onboard-confirm {
         background: #2d6a2d;
         color: white;
-        border-color: #2d6a2d;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-family: 'Nunito', sans-serif;
+        font-weight: 700;
+        font-size: 0.92rem;
+        cursor: pointer;
+        transition: background 0.18s;
+        white-space: nowrap;
+    }
+    .sh-onboard-confirm:hover { background: #1e4620; }
+    .sh-onboard-confirm:disabled { background: #aaa; cursor: not-allowed; }
+
+    /* ── Головний блок ── */
+    .sh-main {
+        background: linear-gradient(135deg, #e8f5e8 0%, #f0faf0 100%);
+        border: 1.5px solid #c5e0c5;
+        border-radius: 14px;
+        padding: 14px 16px 14px;
+    }
+    .sh-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 11px;
+    }
+    .sh-header-title {
+        font-family: 'Nunito', sans-serif;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #2d6a2d;
+    }
+    .sh-edit-link {
+        font-size: 0.75rem;
+        color: #5a9a5a;
+        cursor: pointer;
+        text-decoration: underline;
+        background: none;
+        border: none;
+        font-family: 'Nunito', sans-serif;
+        padding: 0;
+    }
+    .sh-edit-link:hover { color: #2d6a2d; }
+
+    /* Таби культур у головному блоці */
+    .sh-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+    .sh-tab {
+        background: white;
+        border: 1.5px solid #c8e0c8;
+        color: #2d6a2d;
+        padding: 5px 13px;
+        border-radius: 18px;
+        cursor: pointer;
+        font-family: 'Nunito', sans-serif;
+        font-weight: 600;
+        font-size: 0.82rem;
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+    .sh-tab:hover { background: #d8efd8; border-color: #4a9c4a; }
+    .sh-tab.active { background: #2d6a2d; color: white; border-color: #2d6a2d; }
+
+    /* Роздільник груп у табах */
+    .sh-tab-sep {
+        width: 1px;
+        background: #c8e0c8;
+        margin: 3px 2px;
+        border-radius: 1px;
+        align-self: stretch;
     }
 
-    /* Результат */
+    /* Картка стадії */
     .sh-result {
         background: white;
         border-radius: 10px;
-        padding: 16px;
+        padding: 14px 15px;
         border: 1.5px solid #b8d8b8;
-        animation: sh-fadein 0.25s ease;
+        animation: sh-fadein 0.22s ease;
     }
     @keyframes sh-fadein {
-        from { opacity: 0; transform: translateY(6px); }
-        to   { opacity: 1; transform: translateY(0);   }
+        from { opacity: 0; transform: translateY(5px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
-    .sh-stage-label {
-        font-size: 1rem;
+    .sh-stage-name {
+        font-size: 0.97rem;
         font-weight: 700;
         color: #1a3a1a;
         margin-bottom: 4px;
@@ -130,341 +369,370 @@
         background: #e8f5e8;
         color: #2d6a2d;
         border-radius: 8px;
-        font-size: 0.75rem;
+        font-size: 0.73rem;
         font-weight: 600;
         padding: 2px 10px;
         margin-bottom: 10px;
     }
     .sh-problem {
-        font-size: 0.85rem;
+        font-size: 0.83rem;
         color: #c0392b;
         background: #fff5f5;
         border-left: 3px solid #e74c3c;
         padding: 6px 10px;
         border-radius: 0 6px 6px 0;
-        margin-bottom: 12px;
+        margin-bottom: 11px;
         line-height: 1.4;
     }
     .sh-warning {
-        font-size: 0.85rem;
+        font-size: 0.83rem;
         color: #e07b00;
         background: #fff9f0;
         border-left: 3px solid #e07b00;
-        padding: 8px 12px;
+        padding: 7px 11px;
         border-radius: 0 6px 6px 0;
-        margin-bottom: 10px;
+        margin-bottom: 11px;
         font-weight: 600;
     }
     .sh-products-label {
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         font-weight: 700;
-        color: #555;
+        color: #666;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        margin-bottom: 8px;
+        margin-bottom: 7px;
     }
-    .sh-products-list {
+    .sh-chips {
         display: flex;
         flex-wrap: wrap;
-        gap: 7px;
-        margin-bottom: 14px;
+        gap: 6px;
+        margin-bottom: 12px;
     }
-    .sh-product-chip {
+    .sh-chip {
         background: #f0f8f0;
         border: 1.5px solid #b0d4b0;
         color: #1a3a1a;
-        padding: 6px 12px;
+        padding: 5px 11px;
         border-radius: 8px;
-        font-size: 0.82rem;
+        font-size: 0.81rem;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.15s;
         font-family: 'Nunito', sans-serif;
-        position: relative;
     }
-    .sh-product-chip:hover {
-        background: #2d6a2d;
-        color: white;
-        border-color: #2d6a2d;
-    }
-    .sh-product-chip.added {
-        background: #1a3a1a;
-        color: white;
-        border-color: #1a3a1a;
-    }
+    .sh-chip:hover   { background: #2d6a2d; color: white; border-color: #2d6a2d; }
+    .sh-chip.added   { background: #1a3a1a; color: white; border-color: #1a3a1a; }
+    .sh-chip.unavail { opacity: 0.45; cursor: default; }
     .sh-actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
     }
-    .sh-btn-addall {
+    .sh-btn-add {
         flex: 1;
-        min-width: 160px;
+        min-width: 150px;
         background: #2d6a2d;
         color: white;
         border: none;
-        padding: 11px 16px;
+        padding: 10px 13px;
         border-radius: 9px;
         font-family: 'Nunito', sans-serif;
         font-weight: 700;
-        font-size: 0.9rem;
+        font-size: 0.87rem;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background 0.18s;
         text-align: center;
     }
-    .sh-btn-addall:hover { background: #1e4620; }
-    .sh-btn-addall.done  { background: #1a3a1a; }
+    .sh-btn-add:hover { background: #1e4620; }
+    .sh-btn-add.done  { background: #1a3a1a; }
     .sh-btn-scheme {
         background: white;
         color: #2d6a2d;
         border: 1.5px solid #2d6a2d;
-        padding: 11px 16px;
+        padding: 10px 13px;
         border-radius: 9px;
         font-family: 'Nunito', sans-serif;
         font-weight: 700;
-        font-size: 0.9rem;
+        font-size: 0.87rem;
         cursor: pointer;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        transition: all 0.18s;
+        transition: background 0.15s;
         white-space: nowrap;
     }
-    .sh-btn-scheme:hover {
-        background: #e8f5e8;
-    }
+    .sh-btn-scheme:hover { background: #e8f5e8; }
     .sh-offseason {
         color: #888;
-        font-size: 0.9rem;
+        font-size: 0.87rem;
         font-style: italic;
-        padding: 8px 0 4px;
+        padding: 3px 0;
     }
 
     @media (max-width: 480px) {
-        .sh-block { padding: 14px 14px 12px; }
-        .sh-culture-btn { font-size: 0.8rem; padding: 6px 11px; }
-        .sh-btn-addall, .sh-btn-scheme { font-size: 0.82rem; padding: 10px 12px; }
+        .sh-culture-grid { grid-template-columns: repeat(2, 1fr); }
+        .sh-main { padding: 12px 12px 12px; }
+        .sh-tab  { font-size: 0.78rem; padding: 5px 10px; }
+        .sh-btn-add, .sh-btn-scheme { font-size: 0.82rem; padding: 10px 11px; }
+        .sh-group-tab { font-size: 0.8rem; padding: 6px 12px; }
     }
     `;
 
-    // ── Стан ──────────────────────────────────────────────────────
-    const STORAGE_KEY = 'sh_selected_culture';
-    let selectedCultureId = localStorage.getItem(STORAGE_KEY) || 'apple';
-    let schemesData = null;  // заповнюється після завантаження
+    // ══════════════════════════════════════════════════════════════
+    // РЕНДЕР — ОНБОРДИНГ
+    // ══════════════════════════════════════════════════════════════
+    function renderOnboarding() {
+        const group = GROUPS.find(function(g) { return g.id === activeGroupId; }) || GROUPS[0];
 
-    // ── Завантаження schemes ──────────────────────────────────────
-    async function loadSchemes() {
-        if (schemesData) return schemesData;
-        try {
-            const v = (typeof SITE_VERSION !== 'undefined') ? SITE_VERSION : Date.now();
-            const resp = await fetch('protection_schemes.json?v=' + v);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            schemesData = await resp.json();
-        } catch (e) {
-            console.warn('seasonal-helper: не вдалось завантажити protection_schemes.json', e);
-        }
-        return schemesData;
-    }
+        // Таби груп з лічильниками
+        const groupTabsHtml = GROUPS.map(function(g) {
+            const isActive = g.id === activeGroupId ? ' active' : '';
+            const count = g.cultures.filter(function(c) { return myGarden.includes(c.id); }).length;
+            const badge = count > 0
+                ? '<span class="sh-count-badge visible">' + count + '</span>'
+                : '<span class="sh-count-badge"></span>';
+            return '<button class="sh-group-tab' + isActive + '" onclick="shSetOnboardGroup(\'' + g.id + '\')">'
+                 + g.label + badge + '</button>';
+        }).join('');
 
-    // ── Знайти поточну стадію ─────────────────────────────────────
-    function getCurrentStage(culture) {
-        const month = new Date().getMonth(); // 0=Jan
-        const stageMap = MONTH_TO_STAGE[culture.schemeId];
-        if (!stageMap) return null;
-
-        const stageIdx = stageMap[month];
-        if (stageIdx === undefined) return null; // не сезон
-
-        if (!schemesData) return null;
-        const cat = schemesData.protection_schemes[culture.schemeCategory];
-        if (!cat) return null;
-        const scheme = cat.schemes.find(function (s) { return s.id === culture.schemeId; });
-        if (!scheme) return null;
-        return scheme.treatments[stageIdx] || null;
-    }
-
-    // ── Знайти товар у глобальному масиві products ────────────────
-    function findProduct(name) {
-        if (typeof products === 'undefined' || !products.length) return null;
-        const kw = name.toLowerCase();
-        return products.find(function (p) {
-            return p.n.toLowerCase().includes(kw) &&
-                   (p.c || '').toLowerCase().includes('агрохімік') &&
-                   p.inStock !== false;
-        }) || null;
-    }
-
-    // ── Додати один товар у кошик ─────────────────────────────────
-    function addToCart(name, price) {
-        const CART_KEY = 'agronom_cart';
-        let cartArr;
-        try { cartArr = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch (e) { cartArr = []; }
-        const item = cartArr.find(function (i) { return i.n === name; });
-        if (item) { item.q++; } else { cartArr.push({ n: name, p: price, q: 1 }); }
-        localStorage.setItem(CART_KEY, JSON.stringify(cartArr));
-
-        // Синхронізуємо з глобальним кошиком app.js якщо він є
-        if (typeof cart !== 'undefined') {
-            const gItem = cart.find(function (i) { return i.n === name; });
-            if (gItem) { gItem.q++; } else { cart.push({ n: name, p: price, q: 1 }); }
-        }
-        if (typeof updateCartUI === 'function') updateCartUI();
-
-        // Оновити лічильник плаваючої кнопки
-        try {
-            const total = (JSON.parse(localStorage.getItem(CART_KEY)) || [])
-                .reduce(function (s, i) { return s + (i.q || 0); }, 0);
-            const countEl = document.getElementById('cart-count');
-            const fltEl   = document.getElementById('cart-float');
-            if (countEl) countEl.textContent = total;
-            if (fltEl)   fltEl.style.display = total > 0 ? 'block' : 'none';
-        } catch (e) {}
-    }
-
-    // ── Рендер ────────────────────────────────────────────────────
-    function render() {
-        const container = document.getElementById('seasonal-helper-container');
-        if (!container) return;
-
-        const month = new Date().getMonth();
-        const MONTH_NAMES = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
-                             'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
-
-        const culture = CULTURES.find(function (c) { return c.id === selectedCultureId; }) || CULTURES[0];
-        const stage   = getCurrentStage(culture);
-
-        // Кнопки культур
-        const culturesHtml = CULTURES.map(function (c) {
-            const active = c.id === selectedCultureId ? ' active' : '';
-            return '<button class="sh-culture-btn' + active + '" onclick="shSelectCulture(\'' + c.id + '\')">'
+        // Культури поточної групи
+        const culturesHtml = group.cultures.map(function(c) {
+            const sel = myGarden.includes(c.id) ? ' selected' : '';
+            return '<button class="sh-culture-check' + sel + '" onclick="shToggleCulture(\'' + c.id + '\')" data-id="' + c.id + '">'
                  + c.label + '</button>';
         }).join('');
 
-        // Результат
-        let resultHtml = '';
-        if (!stage) {
-            resultHtml = '<div class="sh-result">'
-                + '<div class="sh-offseason">😴 Для ' + culture.label + ' у ' + MONTH_NAMES[month]
-                + ' активних обробок немає. Спочиваємо!</div>'
-                + '</div>';
-        } else {
-            // Попередження про цвітіння
-            const isWarning = stage.stage && stage.stage.toLowerCase().includes('не обробляти');
-            if (isWarning) {
-                resultHtml = '<div class="sh-result">'
-                    + '<div class="sh-stage-label">' + stage.stage + '</div>'
-                    + '<div class="sh-date-badge">📅 ' + (stage.date || MONTH_NAMES[month]) + '</div>'
-                    + '<div class="sh-warning">⛔ ' + stage.problem + '</div>'
-                    + '<a class="sh-btn-scheme" href="protection_schemes.html?category='
-                    + culture.schemeCategory + '&scheme=' + culture.schemeId + '">📋 Повна схема</a>'
-                    + '</div>';
-            } else {
-                // Знаходимо реальні товари (перші 4 зі списку products схеми)
-                const topNames = (stage.products || []).slice(0, 4);
-                const found = topNames.map(function (name) {
-                    return { name: name, product: findProduct(name) };
-                });
+        const total = myGarden.length;
+        const summaryText = total === 0
+            ? 'Нічого не обрано'
+            : 'Обрано: ' + total + ' ' + (total === 1 ? 'культура' : total < 5 ? 'культури' : 'культур');
 
-                const chipsHtml = found.map(function (item, idx) {
-                    if (!item.product) {
-                        return '<span class="sh-product-chip" style="opacity:.55;cursor:default;">'
-                             + item.name + '</span>';
-                    }
-                    const price = item.product.p || 0;
-                    const safeName = item.product.n.replace(/'/g, "\\'");
-                    return '<button class="sh-product-chip" id="sh-chip-' + idx + '" '
-                         + 'onclick="shAddChip(' + idx + ',\'' + safeName + '\',' + price + ')">'
-                         + item.name + '</button>';
-                }).join('');
-
-                const schemeHref = 'protection_schemes.html?category=' + culture.schemeCategory
-                                 + '&scheme=' + culture.schemeId;
-
-                resultHtml = '<div class="sh-result">'
-                    + '<div class="sh-stage-label">' + stage.stage + '</div>'
-                    + '<div class="sh-date-badge">📅 ' + (stage.date || MONTH_NAMES[month]) + '</div>'
-                    + '<div class="sh-problem">🚨 ' + stage.problem + '</div>'
-                    + '<div class="sh-products-label">Рекомендовані препарати:</div>'
-                    + '<div class="sh-products-list" id="sh-chips">' + chipsHtml + '</div>'
-                    + '<div class="sh-actions">'
-                    + '<button class="sh-btn-addall" id="sh-addall-btn" onclick="shAddAll()">'
-                    + '🛒 Додати всі в кошик</button>'
-                    + '<a class="sh-btn-scheme" href="' + schemeHref + '">📋 Повна схема</a>'
-                    + '</div>'
-                    + '</div>';
-            }
-        }
-
-        container.innerHTML =
-            '<div class="sh-block">'
-            + '<div class="sh-title">🌿 Що зараз робити? · ' + MONTH_NAMES[month] + '</div>'
-            + '<div class="sh-cultures">' + culturesHtml + '</div>'
-            + resultHtml
-            + '</div>';
+        return '<div class="sh-onboard">'
+             + '<div class="sh-onboard-title">🌱 Що росте у вашому господарстві?</div>'
+             + '<div class="sh-onboard-sub">Оберіть культури — сайт покаже лише актуальне для вас</div>'
+             + '<div class="sh-group-tabs">' + groupTabsHtml + '</div>'
+             + '<div class="sh-culture-grid" id="sh-culture-grid">' + culturesHtml + '</div>'
+             + '<div class="sh-summary">'
+             + '<span class="sh-summary-text" id="sh-summary-text">' + summaryText + '</span>'
+             + '<button class="sh-onboard-confirm" id="sh-confirm-btn"'
+             + (total === 0 ? ' disabled' : '')
+             + ' onclick="shConfirmGarden()">Зберегти →</button>'
+             + '</div>'
+             + '</div>';
     }
 
-    // ── Глобальні хендлери (викликаються з inline onclick) ────────
-    window.shSelectCulture = function (id) {
-        selectedCultureId = id;
-        localStorage.setItem(STORAGE_KEY, id);
+    // ══════════════════════════════════════════════════════════════
+    // РЕНДЕР — ГОЛОВНИЙ БЛОК
+    // ══════════════════════════════════════════════════════════════
+    function renderMain() {
+        const month = new Date().getMonth();
+
+        // Мої культури, згруповані по групах для візуального роздільника
+        if (!activeCultureId || !myGarden.includes(activeCultureId)) {
+            activeCultureId = myGarden[0] || null;
+        }
+
+        // Таби з роздільниками між групами
+        let tabsHtml = '';
+        let prevGroupId = null;
+        myGarden.forEach(function(cid) {
+            const culture = ALL_CULTURES.find(function(c) { return c.id === cid; });
+            if (!culture) return;
+            const group = GROUPS.find(function(g) {
+                return g.cultures.some(function(c) { return c.id === cid; });
+            });
+            const gid = group ? group.id : null;
+            if (prevGroupId && gid !== prevGroupId) {
+                tabsHtml += '<span class="sh-tab-sep"></span>';
+            }
+            prevGroupId = gid;
+            const active = cid === activeCultureId ? ' active' : '';
+            tabsHtml += '<button class="sh-tab' + active + '" onclick="shSetTab(\'' + cid + '\')">'
+                      + culture.label + '</button>';
+        });
+
+        const culture  = ALL_CULTURES.find(function(c) { return c.id === activeCultureId; });
+        const stageHtml = culture ? renderStageCard(culture, month) : '';
+
+        return '<div class="sh-main">'
+             + '<div class="sh-header">'
+             + '<span class="sh-header-title">🌿 Моє господарство · ' + MONTH_NAMES[month] + '</span>'
+             + '<button class="sh-edit-link" onclick="shEditGarden()">✏️ Змінити</button>'
+             + '</div>'
+             + '<div class="sh-tabs">' + tabsHtml + '</div>'
+             + stageHtml
+             + '</div>';
+    }
+
+    function renderStageCard(culture, month) {
+        const stage = getCurrentStage(culture);
+        if (!stage) {
+            return '<div class="sh-result"><div class="sh-offseason">'
+                 + '😴 Для ' + culture.label + ' у ' + MONTH_NAMES[month]
+                 + ' активних обробок немає. Відпочиваємо!'
+                 + '</div></div>';
+        }
+
+        const isWarning = stage.stage && stage.stage.toLowerCase().includes('не обробляти');
+        if (isWarning) {
+            return '<div class="sh-result">'
+                 + '<div class="sh-stage-name">' + stage.stage + '</div>'
+                 + '<div class="sh-date-badge">📅 ' + (stage.date || MONTH_NAMES[month]) + '</div>'
+                 + '<div class="sh-warning">⛔ ' + stage.problem + '</div>'
+                 + '<a class="sh-btn-scheme" href="protection_schemes.html?category='
+                 + culture.schemeCategory + '&scheme=' + culture.schemeId + '">📋 Повна схема</a>'
+                 + '</div>';
+        }
+
+        const topNames = (stage.products || []).slice(0, 4);
+        const found    = topNames.map(function(n) { return { name: n, product: findProduct(n) }; });
+
+        const chipsHtml = found.map(function(item, idx) {
+            if (!item.product) {
+                return '<span class="sh-chip unavail">' + item.name + '</span>';
+            }
+            const price    = item.product.p || 0;
+            const safeName = item.product.n.replace(/'/g, "\\'");
+            return '<button class="sh-chip" id="sh-chip-' + idx + '" '
+                 + 'onclick="shAddChip(' + idx + ',\'' + safeName + '\',' + price + ')">'
+                 + item.name + '</button>';
+        }).join('');
+
+        const href = 'protection_schemes.html?category=' + culture.schemeCategory
+                   + '&scheme=' + culture.schemeId;
+
+        return '<div class="sh-result">'
+             + '<div class="sh-stage-name">' + stage.stage + '</div>'
+             + '<div class="sh-date-badge">📅 ' + (stage.date || MONTH_NAMES[month]) + '</div>'
+             + '<div class="sh-problem">🚨 ' + stage.problem + '</div>'
+             + '<div class="sh-products-label">Рекомендовані препарати:</div>'
+             + '<div class="sh-chips" id="sh-chips">' + chipsHtml + '</div>'
+             + '<div class="sh-actions">'
+             + '<button class="sh-btn-add" id="sh-addall-btn" onclick="shAddAll()">🛒 Додати всі в кошик</button>'
+             + '<a class="sh-btn-scheme" href="' + href + '">📋 Повна схема</a>'
+             + '</div></div>';
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ГОЛОВНИЙ РЕНДЕР
+    // ══════════════════════════════════════════════════════════════
+    function render() {
+        const container = document.getElementById('seasonal-helper-container');
+        if (!container) return;
+        container.innerHTML = setupDone ? renderMain() : renderOnboarding();
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ХЕНДЛЕРИ
+    // ══════════════════════════════════════════════════════════════
+
+    // Перемикання групи в онбордингу — оновлює лише сітку культур
+    window.shSetOnboardGroup = function(gid) {
+        activeGroupId = gid;
+
+        // Оновити таби груп
+        document.querySelectorAll('.sh-group-tab').forEach(function(btn) {
+            btn.classList.toggle('active', btn.textContent.trim().startsWith(
+                (GROUPS.find(function(g) { return g.id === gid; }) || {}).label || '___'
+            ));
+        });
+        // Повний перерендер онбордингу (тільки grid і таби)
         render();
     };
 
-    window.shAddChip = function (idx, name, price) {
-        addToCart(name, price);
-        const chip = document.getElementById('sh-chip-' + idx);
-        if (chip) {
-            chip.classList.add('added');
-            chip.textContent = '✓ ' + chip.textContent.replace(/^✓ /, '');
-        }
+    // Тогл культури
+    window.shToggleCulture = function(id) {
+        const idx = myGarden.indexOf(id);
+        if (idx === -1) { myGarden.push(id); } else { myGarden.splice(idx, 1); }
+
+        // Оновити кнопку
+        const btn = document.querySelector('.sh-culture-check[data-id="' + id + '"]');
+        if (btn) btn.classList.toggle('selected', myGarden.includes(id));
+
+        // Оновити лічильник на таб-групі
+        GROUPS.forEach(function(g, gi) {
+            const count = g.cultures.filter(function(c) { return myGarden.includes(c.id); }).length;
+            const badge = document.querySelectorAll('.sh-group-tab')[gi]
+                                  && document.querySelectorAll('.sh-group-tab')[gi].querySelector('.sh-count-badge');
+            if (badge) {
+                badge.textContent = count > 0 ? count : '';
+                badge.classList.toggle('visible', count > 0);
+            }
+        });
+
+        // Оновити текст підсумку і кнопку
+        const total = myGarden.length;
+        const summaryEl  = document.getElementById('sh-summary-text');
+        const confirmBtn = document.getElementById('sh-confirm-btn');
+        if (summaryEl) summaryEl.textContent = total === 0 ? 'Нічого не обрано'
+            : 'Обрано: ' + total + ' ' + (total === 1 ? 'культура' : total < 5 ? 'культури' : 'культур');
+        if (confirmBtn) confirmBtn.disabled = total === 0;
     };
 
-    window.shAddAll = function () {
-        const btn = document.getElementById('sh-addall-btn');
-        const chips = document.querySelectorAll('#sh-chips .sh-product-chip[id]');
+    window.shConfirmGarden = function() {
+        if (myGarden.length === 0) return;
+        setupDone = true;
+        activeCultureId = myGarden[0];
+        saveGarden();
+        render();
+    };
+
+    window.shEditGarden = function() {
+        setupDone = false;
+        render();
+    };
+
+    window.shSetTab = function(id) {
+        activeCultureId = id;
+        render();
+    };
+
+    window.shAddChip = function(idx, name, price) {
+        addToCart(name, price);
+        const chip = document.getElementById('sh-chip-' + idx);
+        if (chip) { chip.classList.add('added'); chip.textContent = '✓ ' + chip.textContent.replace(/^✓ /, ''); }
+    };
+
+    window.shAddAll = function() {
+        const btn   = document.getElementById('sh-addall-btn');
+        const chips = document.querySelectorAll('#sh-chips .sh-chip:not(.unavail)');
         let added = 0;
-        chips.forEach(function (chip, idx) {
-            // дістаємо name і price з onclick атрибуту
-            const match = chip.getAttribute('onclick').match(/shAddChip\(\d+,'(.+?)',(\d+(?:\.\d+)?)\)/);
-            if (match) {
-                addToCart(match[1], parseFloat(match[2]));
+        chips.forEach(function(chip) {
+            const m = (chip.getAttribute('onclick') || '').match(/shAddChip\(\d+,'(.+?)',(\d+(?:\.\d+)?)\)/);
+            if (m) {
+                addToCart(m[1], parseFloat(m[2]));
                 chip.classList.add('added');
                 chip.textContent = '✓ ' + chip.textContent.replace(/^✓ /, '');
                 added++;
             }
         });
         if (btn && added > 0) {
-            btn.textContent = '✓ Додано ' + added + ' товари';
+            btn.textContent = '✓ Додано ' + added + ' препарати';
             btn.classList.add('done');
         }
     };
 
-    // ── Ін'єкція стилів ───────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    // ІНІТ
+    // ══════════════════════════════════════════════════════════════
     function injectStyles() {
         if (document.getElementById('sh-styles')) return;
-        const style = document.createElement('style');
-        style.id = 'sh-styles';
-        style.textContent = CSS;
-        document.head.appendChild(style);
+        const s = document.createElement('style');
+        s.id = 'sh-styles';
+        s.textContent = CSS;
+        document.head.appendChild(s);
     }
 
-    // ── Ініціалізація ─────────────────────────────────────────────
     async function init() {
         injectStyles();
-        // Показуємо скелетон поки вантажимо
-        const container = document.getElementById('seasonal-helper-container');
-        if (!container) return;
-
+        if (!document.getElementById('seasonal-helper-container')) return;
+        loadState();
         await loadSchemes();
         render();
     }
 
-    // Запускаємо після того як app.js завантажив products
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-            // Чекаємо трохи щоб app.js встиг відпрацювати loadProducts()
-            setTimeout(init, 300);
-        });
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 300); });
     } else {
         setTimeout(init, 300);
     }
